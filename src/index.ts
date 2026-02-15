@@ -1,17 +1,13 @@
 import express from "express";
-import cors from "cors";
+import clubsRouter from "./routes/clubs";
+import { config } from "dotenv";
 
+config();
+//TODO: add cors, body-parser, and other middleware as needed
 const app = express();
-
-app.use(cors());
-app.use(express.json());
-
 app.use("/clubs", clubsRouter);
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
-});
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+const PORT = 5001;
+const server = app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
