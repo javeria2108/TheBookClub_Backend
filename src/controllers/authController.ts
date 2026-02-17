@@ -1,7 +1,8 @@
 import { RequestHandler } from "express";
 
 const registerUser: RequestHandler = async (req, res) => {
-  res.json({ message: "success" });
+  const body = req.body;
+  res.json(body);
 };
 
 export { registerUser };
