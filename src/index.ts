@@ -6,8 +6,10 @@ import authRouter from "./routes/authRoutes";
 config();
 //TODO: add cors, body-parser, and other middleware as needed
 const app = express();
-
+//Body parsing middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use("/clubs", clubsRouter);
 app.use("/auth", authRouter);
 
