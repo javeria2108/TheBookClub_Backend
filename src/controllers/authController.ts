@@ -1,8 +1,8 @@
 import { RequestHandler } from "express";
-
+import { prisma } from "../lib/prisma";
 const registerUser: RequestHandler = async (req, res) => {
-  const body = req.body;
-  res.json(body);
+  const { name, email, password } = req.body;
+  const userExists = await prisma.user.findUnique({ where: { email } });
 };
 
 export { registerUser };
