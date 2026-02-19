@@ -24,7 +24,16 @@ const registerUser: RequestHandler = async (req, res) => {
     }
   })
 
-  res.status(201).json({ message: "User registered successfully", user });
+  res.status(201).json({
+    status: "success",
+    data: {
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      }
+    }});
 };
 
 export { registerUser };
