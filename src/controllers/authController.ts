@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcryptjs";
+import { error } from "node:console";
 
 const registerUser: RequestHandler = async (req, res) => {
   const { name, email, password } = req.body;
@@ -21,8 +22,8 @@ const registerUser: RequestHandler = async (req, res) => {
       username: name,
       email: email,
       passwordHash: hashedPassword,
-    }
-  })
+    },
+  });
 
   res.status(201).json({
     status: "success",
@@ -32,8 +33,19 @@ const registerUser: RequestHandler = async (req, res) => {
         email: user.email,
         username: user.username,
         role: user.role,
-      }
-    }});
+      },
+    },
+  });
 };
 
-export { registerUser };
+const loginUser: RequestHandler = async (req, res) => {
+  const { email, password } = req.body;
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    return res
+      .status(400)
+      .json({ error: { message: "Invalid email or password" } });
+  }
+};
+
+export { registerUser, loginUser };
