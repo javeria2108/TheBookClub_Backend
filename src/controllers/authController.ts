@@ -25,7 +25,7 @@ const registerUser: RequestHandler = async (req, res) => {
     },
   });
 
-  const token = generateToken(user.id);
+  const token = generateToken(user.id, res);
   res.status(201).json({
     status: "success",
     data: {
@@ -58,7 +58,7 @@ const loginUser: RequestHandler = async (req, res) => {
       .json({ error: { message: "Invalid email or password" } });
   }
 
-  const token = generateToken(user.id);
+  const token = generateToken(user.id, res);
   res.status(200).json({
     status: "success",
     data: {
