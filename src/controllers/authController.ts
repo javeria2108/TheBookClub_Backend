@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcryptjs";
-import { error } from "node:console";
+import generateToken from "../utils/generateToken";
 
 const registerUser: RequestHandler = async (req, res) => {
   const { name, email, password } = req.body;
@@ -25,6 +25,7 @@ const registerUser: RequestHandler = async (req, res) => {
     },
   });
 
+  const token = generateToken(user.id);
   res.status(201).json({
     status: "success",
     data: {
@@ -34,6 +35,7 @@ const registerUser: RequestHandler = async (req, res) => {
         username: user.username,
         role: user.role,
       },
+      token,
     },
   });
 };
@@ -41,11 +43,32 @@ const registerUser: RequestHandler = async (req, res) => {
 const loginUser: RequestHandler = async (req, res) => {
   const { email, password } = req.body;
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
+
+  if (!user || !user.passwordHash) {
     return res
       .status(400)
       .json({ error: { message: "Invalid email or password" } });
   }
+
+  const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+  if (!isPasswordValid) {
+    return res
+      .status(400)
+      .json({ error: { message: "Invalid email or password" } });
+  }
+
+  const token = generateToken(user.id);
+  res.status(200).json({
+    status: "success",
+    data: {
+      user: {
+        id: user.id,
+        email: user.email,
+      },
+      token,
+    },
+  });
 };
 
 export { registerUser, loginUser };
