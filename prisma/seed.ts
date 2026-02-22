@@ -26,19 +26,32 @@ async function main() {
         isPublic: true,
       },
       {
+        name: "Islamic Books Circle",
+        description:
+          "Discussion of Quran, Hadith, Seerah, and Islamic scholarship",
+        isPublic: true,
+      },
+      {
+        name: "Self Help & Personal Growth",
+        description:
+          "Books on productivity, mindset, habits, and self improvement",
+        isPublic: true,
+      },
+      {
         name: "Private Classics Club",
         description: "Invite-only discussion of classic literature",
         isPublic: false,
       },
     ],
+    skipDuplicates: true,
   });
 
-  console.log("✅ Book clubs seeded");
+  console.log("✅ Book clubs seeded successfully");
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error("❌ Seeding error:", e);
     process.exit(1);
   })
   .finally(async () => {
