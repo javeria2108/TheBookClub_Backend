@@ -1,9 +1,10 @@
+import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console;
+  console.log("🌱 Seeding database...");
   await prisma.bookClub.createMany({
     data: [
       {
