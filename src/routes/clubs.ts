@@ -1,9 +1,9 @@
 import express from "express";
+import { getClubs } from "../controllers/clubController";
+import { get } from "node:http";
 
 const router = express.Router();
 
-router.get("/hello", (req, res) => {
-  res.json({ message: "hello world" });
-});
+router.get("/", getClubs);
 
 export default router;
