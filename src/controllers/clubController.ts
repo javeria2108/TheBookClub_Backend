@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
+import { GetClubsSuccessData } from "../types";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -48,17 +49,19 @@ export const getClubs: RequestHandler = async (req, res) => {
       prisma.bookClub.count({ where }),
     ]);
 
+    const data: GetClubsSuccessData = {
+      clubs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+
     return res.status(200).json({
       status: "success",
-      data: {
-        clubs,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      },
+      data,
     });
   } catch (error) {
     console.error("GET /api/clubs failed:", error);

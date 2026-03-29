@@ -2,9 +2,10 @@ import { RequestHandler } from "express";
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken";
+import { LoginRequestBody, RegisterRequestBody } from "../types";
 
 const registerUser: RequestHandler = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password } = req.body as RegisterRequestBody;
   const userExists = await prisma.user.findUnique({ where: { email } });
   if (userExists) {
     return res
@@ -41,7 +42,7 @@ const registerUser: RequestHandler = async (req, res) => {
 };
 
 const loginUser: RequestHandler = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body as LoginRequestBody;
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !user.passwordHash) {

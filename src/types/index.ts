@@ -4,3 +4,5 @@
 
 export * from './user.types';
 export * from './bookClub.types';
+export * from './auth.types';
+export * from './clubResponse.types';
