@@ -1,4 +1,4 @@
-import { BookClubResponse } from "./bookClub.types";
+import type { BookClubResponse } from "./bookClub.types";
 
 export interface ClubsPagination {
   page: number;
@@ -10,4 +10,8 @@ export interface ClubsPagination {
 export interface GetClubsSuccessData {
   clubs: BookClubResponse[];
   pagination: ClubsPagination;
+}
+
+export interface CreateClubSuccessData {
+  club: BookClubResponse;
 }

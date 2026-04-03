@@ -1,22 +1,12 @@
-import { Role } from "./user.types";
+import type { UserRegisterInput, UserLoginInput, UserResponse } from "./user.types";
 
-export interface RegisterRequestBody {
-  name: string;
-  email: string;
-  password: string;
-}
+export type RegisterRequestBody = UserRegisterInput;
+export type LoginRequestBody = UserLoginInput;
 
-export interface LoginRequestBody {
-  email: string;
-  password: string;
-}
-
-export interface AuthUserResponse {
-  id: string;
-  email: string;
-  username: string;
-  role: Role;
-}
+export type AuthUserResponse = Pick<
+  UserResponse,
+  "id" | "email" | "username" | "role"
+>;
 
 export interface AuthSuccessData {
   user: AuthUserResponse;

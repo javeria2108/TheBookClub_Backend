@@ -2,15 +2,25 @@ import { RequestHandler } from "express";
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcryptjs";
 import generateToken from "../utils/generateToken";
-import { LoginRequestBody, RegisterRequestBody } from "../types";
+import { getFirstValidationMessage } from "../utils/validation";
+import { UserLoginSchema, UserRegisterSchema } from "../schemas";
+import type { AuthSuccessData, AuthUserResponse } from "../types/auth.types";
 
 const registerUser: RequestHandler = async (req, res) => {
-  const { name, email, password } = req.body as RegisterRequestBody;
+  const validation = UserRegisterSchema.safeParse(req.body);
+
+  if (!validation.success) {
+    return res.status(400).json({
+      error: { message: getFirstValidationMessage(validation.error) },
+    });
+  }
+
+  const { name, email, password } = validation.data;
   const userExists = await prisma.user.findUnique({ where: { email } });
   if (userExists) {
     return res
       .status(400)
-      .json({ message: "User with this email already exists" });
+      .json({ error: { message: "User with this email already exists" } });
   }
 
   //hash password
@@ -35,14 +45,22 @@ const registerUser: RequestHandler = async (req, res) => {
         email: user.email,
         username: user.username,
         role: user.role,
-      },
+      } satisfies AuthUserResponse,
       token,
-    },
+    } satisfies AuthSuccessData,
   });
 };
 
 const loginUser: RequestHandler = async (req, res) => {
-  const { email, password } = req.body as LoginRequestBody;
+  const validation = UserLoginSchema.safeParse(req.body);
+
+  if (!validation.success) {
+    return res.status(400).json({
+      error: { message: getFirstValidationMessage(validation.error) },
+    });
+  }
+
+  const { email, password } = validation.data;
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !user.passwordHash) {
@@ -68,9 +86,9 @@ const loginUser: RequestHandler = async (req, res) => {
         email: user.email,
         username: user.username,
         role: user.role,
-      },
+      } satisfies AuthUserResponse,
       token,
-    },
+    } satisfies AuthSuccessData,
   });
 };
 

@@ -1,31 +1,16 @@
 /**
- * BookClub-related TypeScript types and interfaces
+ * BookClub-related TypeScript types inferred from Zod schemas.
+ * The schemas remain the runtime source of truth.
  */
 
-export interface BookClub {
-  id: string;
-  name: string;
-  description?: string | null;
-  isPublic: boolean;
-  createdAt: Date;
-}
+import type {
+  BookClubResponseSchemaType,
+  BookClubSchemaType,
+  CreateBookClubSchemaType,
+  UpdateBookClubSchemaType,
+} from "../schemas";
 
-export interface CreateBookClubInput {
-  name: string;
-  description?: string;
-  isPublic?: boolean;
-}
-
-export interface UpdateBookClubInput {
-  name?: string;
-  description?: string;
-  isPublic?: boolean;
-}
-
-export interface BookClubResponse {
-  id: string;
-  name: string;
-  description?: string | null;
-  isPublic: boolean;
-  createdAt: Date;
-}
+export type BookClub = BookClubSchemaType;
+export type CreateBookClubInput = CreateBookClubSchemaType;
+export type UpdateBookClubInput = UpdateBookClubSchemaType;
+export type BookClubResponse = BookClubResponseSchemaType;

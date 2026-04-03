@@ -1,69 +1,25 @@
 /**
- * User-related TypeScript types and interfaces
+ * User-related TypeScript types inferred from Zod schemas.
+ * The schemas remain the runtime source of truth.
  */
 
-export enum Role {
-  USER = 'USER',
-  ADMIN = 'ADMIN',
-}
+import type {
+  AuthProviderSchemaType,
+  CreateUserSchemaType,
+  RoleSchemaType,
+  UpdateUserSchemaType,
+  UserLoginSchemaType,
+  UserRegisterSchemaType,
+  UserResponseSchemaType,
+  UserSchemaType,
+} from "../schemas";
 
-export enum AuthProvider {
-  LOCAL = 'LOCAL',
-  GOOGLE = 'GOOGLE',
-  GITHUB = 'GITHUB',
-}
+export type Role = RoleSchemaType;
+export type AuthProvider = AuthProviderSchemaType;
 
-export interface User {
-  id: string;
-  email: string;
-  username: string;
-  passwordHash?: string | null;
-  role: Role;
-  isEmailVerified: boolean;
-  isActive: boolean;
-  provider: AuthProvider;
-  providerId?: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface CreateUserInput {
-  email: string;
-  username: string;
-  passwordHash?: string;
-  role?: Role;
-  provider?: AuthProvider;
-  providerId?: string;
-}
-
-export interface UpdateUserInput {
-  email?: string;
-  username?: string;
-  passwordHash?: string;
-  role?: Role;
-  isEmailVerified?: boolean;
-  isActive?: boolean;
-}
-
-export interface UserLoginInput {
-  email: string;
-  password: string;
-}
-
-export interface UserRegisterInput {
-  email: string;
-  username: string;
-  password: string;
-}
-
-export interface UserResponse {
-  id: string;
-  email: string;
-  username: string;
-  role: Role;
-  isEmailVerified: boolean;
-  isActive: boolean;
-  provider: AuthProvider;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type User = UserSchemaType;
+export type CreateUserInput = CreateUserSchemaType;
+export type UpdateUserInput = UpdateUserSchemaType;
+export type UserLoginInput = UserLoginSchemaType;
+export type UserRegisterInput = UserRegisterSchemaType;
+export type UserResponse = UserResponseSchemaType;

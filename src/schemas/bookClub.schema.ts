@@ -17,13 +17,13 @@ export const BookClubSchema = z.object({
 export const CreateBookClubSchema = z.object({
   name: z
     .string()
+    .trim()
     .min(1, 'Book club name is required')
-    .max(100, 'Book club name must be at most 100 characters')
-    .trim(),
+    .max(100, 'Book club name must be at most 100 characters'),
   description: z
     .string()
-    .max(500, 'Description must be at most 500 characters')
     .trim()
+    .max(500, 'Description must be at most 500 characters')
     .optional(),
   isPublic: z.boolean().optional().default(true),
 });
@@ -32,14 +32,14 @@ export const CreateBookClubSchema = z.object({
 export const UpdateBookClubSchema = z.object({
   name: z
     .string()
+    .trim()
     .min(1, 'Book club name is required')
     .max(100, 'Book club name must be at most 100 characters')
-    .trim()
     .optional(),
   description: z
     .string()
-    .max(500, 'Description must be at most 500 characters')
     .trim()
+    .max(500, 'Description must be at most 500 characters')
     .optional()
     .nullable(),
   isPublic: z.boolean().optional(),

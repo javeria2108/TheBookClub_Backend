@@ -7,6 +7,8 @@ import { z } from 'zod';
 // Enum schemas
 export const RoleSchema = z.enum(['USER', 'ADMIN']);
 export const AuthProviderSchema = z.enum(['LOCAL', 'GOOGLE', 'GITHUB']);
+export type RoleSchemaType = z.infer<typeof RoleSchema>;
+export type AuthProviderSchemaType = z.infer<typeof AuthProviderSchema>;
 
 // Base User schema
 export const UserSchema = z.object({
@@ -61,11 +63,11 @@ export const UserLoginSchema = z.object({
 // User registration schema
 export const UserRegisterSchema = z.object({
   email: z.string().email('Invalid email format'),
-  username: z
+  name: z
     .string()
-    .min(3, 'Username must be at least 3 characters')
-    .max(50, 'Username must be at most 50 characters')
-    .regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens'),
+    .trim()
+    .min(3, 'Name must be at least 3 characters')
+    .max(50, 'Name must be at most 50 characters'),
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters')
