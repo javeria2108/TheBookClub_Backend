@@ -15,3 +15,7 @@ export interface GetClubsSuccessData {
 export interface CreateClubSuccessData {
   club: BookClubResponse;
 }
+
+export interface GetClubByIdSuccessData {
+  club: BookClubResponse;
+}
