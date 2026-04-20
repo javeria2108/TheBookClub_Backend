@@ -6,6 +6,7 @@ import { CreateBookClubSchema } from "../schemas";
 import type { CreateBookClubSchemaType } from "../schemas/bookClub.schema";
 import type {
   CreateClubSuccessData,
+  GetClubByIdSuccessData,
   GetClubsSuccessData,
 } from "../types/clubResponse.types";
 
@@ -22,8 +23,14 @@ function toPositiveInt(value: string | undefined, fallback: number): number {
 
 export const getClubs: RequestHandler = async (req, res) => {
   try {
-    const page = toPositiveInt(req.query.page as string | undefined, DEFAULT_PAGE);
-    const rawLimit = toPositiveInt(req.query.limit as string | undefined, DEFAULT_LIMIT);
+    const page = toPositiveInt(
+      req.query.page as string | undefined,
+      DEFAULT_PAGE,
+    );
+    const rawLimit = toPositiveInt(
+      req.query.limit as string | undefined,
+      DEFAULT_LIMIT,
+    );
     const limit = Math.min(rawLimit, MAX_LIMIT);
 
     const search = (req.query.search as string | undefined)?.trim();
@@ -101,6 +108,41 @@ export const createClub: RequestHandler = async (req, res) => {
     console.error("POST /api/clubs failed:", error);
     return res.status(500).json({
       error: { message: "Failed to create club" },
+    });
+  }
+};
+
+export const getClubById: RequestHandler = async (req, res) => {
+  try {
+    const rawId = req.params.id;
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+
+    if (!id) {
+      return res.status(400).json({
+        error: { message: "Club id is required" },
+      });
+    }
+
+    const club = await prisma.bookClub.findUnique({
+      where: { id },
+    });
+
+    if (!club) {
+      return res.status(404).json({
+        error: { message: "Club not found" },
+      });
+    }
+
+    const data: GetClubByIdSuccessData = { club };
+
+    return res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    console.error("GET /api/clubs/:id failed:", error);
+    return res.status(500).json({
+      error: { message: "Failed to fetch club" },
     });
   }
 };
