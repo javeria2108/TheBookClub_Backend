@@ -1,9 +1,9 @@
 import express from "express";
 import {
-	createClub,
-	getClubById,
-	getClubs,
-	joinClub,
+  createClub,
+  getClubById,
+  getClubs,
+  joinClub,
 } from "../controllers/clubController";
 import { requireAuth } from "../middleware/requireAuth";
 
@@ -15,7 +15,7 @@ router.get("/", getClubs);
 // Create club
 router.post("/", createClub);
 
-// Join public club (auth required)
+//Join public club
 router.post("/:id/join", requireAuth, joinClub);
 
 // Get single club by ID
