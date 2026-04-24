@@ -8,7 +8,6 @@ import type {
   CreateClubSuccessData,
   GetClubByIdSuccessData,
   GetClubsSuccessData,
-  JoinClubSuccessData,
 } from "../types/clubResponse.types";
 
 const DEFAULT_PAGE = 1;
@@ -206,7 +205,7 @@ export const joinClub: RequestHandler = async (req, res) => {
 
     if (!clubId) {
       return res.status(400).json({
-        error: { message: "Club id is required" },
+        error: { message: "CLub id is required" },
       });
     }
 
@@ -229,9 +228,7 @@ export const joinClub: RequestHandler = async (req, res) => {
 
     if (!club.isPublic) {
       return res.status(403).json({
-        error: {
-          message: "Private club join requests are not available yet",
-        },
+        error: { message: "Private club join requests are not available yet" },
       });
     }
 
@@ -246,14 +243,12 @@ export const joinClub: RequestHandler = async (req, res) => {
       where: { clubId },
     });
 
-    const data: JoinClubSuccessData = {
-      clubId,
-      memberCount,
-    };
-
     return res.status(201).json({
       status: "success",
-      data,
+      data: {
+        clubId,
+        memberCount,
+      },
     });
   } catch (error) {
     if (
