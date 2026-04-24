@@ -5,7 +5,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model BookClub {
@@ -13,7 +12,10 @@ model BookClub {
   name        String
   description String?
   isPublic    Boolean  @default(true)
+  genre       String?
+  coverImage  String?
   createdAt   DateTime @default(now())
+  members     ClubMember[]
 }
 
 model User {
@@ -28,6 +30,22 @@ model User {
   providerId      String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+  clubMemberships ClubMember[]
+}
+
+model ClubMember {
+  id       String         @id @default(uuid())
+  userId   String
+  clubId   String
+  role     ClubMemberRole @default(MEMBER)
+  joinedAt DateTime       @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club BookClub @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clubId])
+  @@index([clubId])
+  @@index([userId])
 }
 
 enum Role {
@@ -39,4 +57,10 @@ enum AuthProvider {
   LOCAL
   GOOGLE
   GITHUB
+}
+
+enum ClubMemberRole {
+  MEMBER
+  MODERATOR
+  OWNER
 }

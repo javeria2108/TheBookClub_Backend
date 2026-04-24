@@ -10,6 +10,9 @@ export const BookClubSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().nullable().optional(),
   isPublic: z.boolean(),
+  genre: z.string().nullable().optional(),
+  coverImage: z.string().url().nullable().optional(),
+  memberCount: z.number().int().nonnegative().optional(),
   createdAt: z.date(),
 });
 
@@ -26,6 +29,8 @@ export const CreateBookClubSchema = z.object({
     .max(500, 'Description must be at most 500 characters')
     .optional(),
   isPublic: z.boolean().optional().default(true),
+  genre: z.string().trim().max(80, 'Genre must be at most 80 characters').optional(),
+  coverImage: z.string().url('Cover image must be a valid URL').optional(),
 });
 
 // BookClub update schema
@@ -43,6 +48,12 @@ export const UpdateBookClubSchema = z.object({
     .optional()
     .nullable(),
   isPublic: z.boolean().optional(),
+  genre: z.string().trim().max(80, 'Genre must be at most 80 characters').optional().nullable(),
+  coverImage: z
+    .string()
+    .url('Cover image must be a valid URL')
+    .optional()
+    .nullable(),
 });
 
 // BookClub response schema
@@ -51,6 +62,9 @@ export const BookClubResponseSchema = z.object({
   name: z.string(),
   description: z.string().nullable().optional(),
   isPublic: z.boolean(),
+  genre: z.string().nullable().optional(),
+  coverImage: z.string().url().nullable().optional(),
+  memberCount: z.number().int().nonnegative(),
   createdAt: z.date(),
 });
 

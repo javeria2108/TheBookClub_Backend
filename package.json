@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "seed": "ts-node --require dotenv/config prisma/seed.ts",
+    "backfill:clubs": "ts-node --require dotenv/config prisma/backfillClubMetadata.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
