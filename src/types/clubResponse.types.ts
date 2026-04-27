@@ -19,8 +19,3 @@ export interface CreateClubSuccessData {
 export interface GetClubByIdSuccessData {
   club: BookClubResponse;
 }
-
-export interface JoinClubSuccessData {
-  clubId: string;
-  memberCount: number;
-}

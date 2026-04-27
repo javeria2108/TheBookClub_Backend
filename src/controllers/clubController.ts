@@ -197,6 +197,45 @@ export const getClubById: RequestHandler = async (req, res) => {
   }
 };
 
+export const getMyClubs: RequestHandler = async (req, res) => {
+  try {
+    const userId = res.locals.userId as string | undefined;
+
+    if (!userId) {
+      return res.status(401).json({ error: { message: "Authentication required" } });
+    }
+
+    const memberships = await prisma.clubMember.findMany({
+      where: { userId },
+      include: {
+        club: {
+          include: {
+            _count: { select: { members: true } },
+          },
+        },
+      },
+      orderBy: { joinedAt: "desc" },
+    });
+
+    const clubs = memberships.map((m) => ({
+      id: m.club.id,
+      name: m.club.name,
+      description: m.club.description,
+      isPublic: m.club.isPublic,
+      genre: m.club.genre,
+      coverImage: m.club.coverImage,
+      memberCount: m.club._count.members,
+      joinedAt: m.joinedAt,
+      createdAt: m.club.createdAt,
+    }));
+
+    return res.status(200).json({ status: "success", data: { clubs } });
+  } catch (error) {
+    console.error("GET /api/clubs/mine failed:", error);
+    return res.status(500).json({ error: { message: "Failed to fetch your clubs" } });
+  }
+};
+
 export const joinClub: RequestHandler = async (req, res) => {
   try {
     const rawId = req.params.id;

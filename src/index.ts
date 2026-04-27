@@ -1,5 +1,6 @@
 import express from "express";
 import clubsRouter from "./routes/clubs";
+import usersRouter from "./routes/users";
 import { config } from "dotenv";
 import authRouter from "./routes/authRoutes";
 import cors from "cors";
@@ -19,6 +20,7 @@ app.use(
 );
 
 app.use("/api/clubs", clubsRouter);
+app.use("/api/users", usersRouter);
 app.use("/api/auth", authRouter);
 
 const PORT = 5001;
