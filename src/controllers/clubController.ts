@@ -9,6 +9,7 @@ import type {
   GetClubByIdSuccessData,
   GetClubsSuccessData,
 } from "../types/clubResponse.types";
+import { raw } from "@prisma/client/runtime/library";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -202,7 +203,9 @@ export const getMyClubs: RequestHandler = async (req, res) => {
     const userId = res.locals.userId as string | undefined;
 
     if (!userId) {
-      return res.status(401).json({ error: { message: "Authentication required" } });
+      return res
+        .status(401)
+        .json({ error: { message: "Authentication required" } });
     }
 
     const memberships = await prisma.clubMember.findMany({
@@ -231,8 +234,10 @@ export const getMyClubs: RequestHandler = async (req, res) => {
 
     return res.status(200).json({ status: "success", data: { clubs } });
   } catch (error) {
-    console.error("GET /api/clubs/mine failed:", error);
-    return res.status(500).json({ error: { message: "Failed to fetch your clubs" } });
+    console.error("GET /api/users/me/clubs failed:", error);
+    return res
+      .status(500)
+      .json({ error: { message: "Failed to fetch your clubs" } });
   }
 };
 
@@ -302,6 +307,68 @@ export const joinClub: RequestHandler = async (req, res) => {
     console.error("POST /api/clubs/:id/join failed:", error);
     return res.status(500).json({
       error: { message: "Failed to join club" },
+    });
+  }
+};
+
+export const leaveClub: RequestHandler = async (req, res) => {
+  try {
+    const rawId = req.params.id;
+    const clubId = Array.isArray(rawId) ? rawId[0] : rawId;
+    const userId = res.locals.userId as string | undefined;
+
+    if (!clubId) {
+      return res.status(400).json({
+        error: { message: "Club id is required" },
+      });
+    }
+
+    if (!userId) {
+      return res.status(401).json({
+        error: { message: "Authentication is required" },
+      });
+    }
+
+    const club = await prisma.bookClub.findUnique({
+      where: { id: clubId },
+      select: { id: true },
+    });
+
+    if (!club) {
+      return res.status(404).json({
+        error: { message: "Club not found" },
+      });
+    }
+
+    const membership = await prisma.clubMember.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+    });
+
+    if (!membership) {
+      return res.status(404).json({
+        error: { message: "You are not a member of this club" },
+      });
+    }
+
+    await prisma.clubMember.delete({
+      where: { userId_clubId: { userId, clubId } },
+    });
+
+    const memberCount = await prisma.clubMember.count({
+      where: { clubId },
+    });
+
+    return res.status(200).json({
+      status: "success",
+      data: {
+        clubId,
+        memberCount,
+      },
+    });
+  } catch (error) {
+    console.error("DELETE /api/clubs/:id/member failed:", error);
+    return res.status(500).json({
+      error: { message: "Failed to leave club" },
     });
   }
 };

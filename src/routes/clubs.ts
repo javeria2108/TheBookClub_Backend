@@ -4,6 +4,7 @@ import {
   getClubById,
   getClubs,
   joinClub,
+  leaveClub,
 } from "../controllers/clubController";
 import { requireAuth } from "../middleware/requireAuth";
 
@@ -17,6 +18,9 @@ router.post("/", createClub);
 
 //Join public club
 router.post("/:id/join", requireAuth, joinClub);
+
+//Leave a club
+router.delete("/:id/member", requireAuth, leaveClub);
 
 // Get single club by ID
 router.get("/:id", getClubById);
