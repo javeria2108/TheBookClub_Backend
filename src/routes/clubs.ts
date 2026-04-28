@@ -14,7 +14,7 @@ const router = express.Router();
 router.get("/", getClubs);
 
 // Create club
-router.post("/", createClub);
+router.post("/", requireAuth, createClub);
 
 //Join public club
 router.post("/:id/join", requireAuth, joinClub);

@@ -1,25 +1,51 @@
-import { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
 import { getFirstValidationMessage } from "../utils/validation";
 import { CreateBookClubSchema } from "../schemas";
+import jwt from "jsonwebtoken";
 import type { CreateBookClubSchemaType } from "../schemas/bookClub.schema";
 import type {
   CreateClubSuccessData,
   GetClubByIdSuccessData,
   GetClubsSuccessData,
 } from "../types/clubResponse.types";
-import { raw } from "@prisma/client/runtime/library";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
+
+type JwtPayload = {
+  id?: string;
+};
 
 function toPositiveInt(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) return fallback;
   return parsed;
+}
+
+function getOptionalUserIdFromRequest(req: Request) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    return undefined;
+  }
+
+  const token = authHeader.slice("Bearer ".length).trim();
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    return undefined;
+  }
+
+  try {
+    const payload = jwt.verify(token, secret) as JwtPayload;
+    return payload.id;
+  } catch {
+    return undefined;
+  }
 }
 
 export const getClubs: RequestHandler = async (req, res) => {
@@ -107,38 +133,51 @@ export const createClub: RequestHandler = async (req, res) => {
 
     const payload: CreateBookClubSchemaType = validation.data;
 
-    const club = await prisma.bookClub.create({
-      data: {
-        name: payload.name,
-        description: payload.description ?? null,
-        isPublic: payload.isPublic,
-        genre: payload.genre ?? null,
-        coverImage: payload.coverImage ?? null,
-      },
-      include: {
-        _count: {
-          select: { members: true },
+    const userId = res.locals.userId as string | undefined;
+
+    if (!userId) {
+      return res.status(401).json({
+        error: { message: "Authentication required" },
+      });
+    }
+
+    // Create club and set creator as OWNER in a transaction
+    const createdClub = await prisma.$transaction(async (tx) => {
+      const c = await tx.bookClub.create({
+        data: {
+          name: payload.name,
+          description: payload.description ?? null,
+          isPublic: payload.isPublic,
+          genre: payload.genre ?? null,
+          coverImage: payload.coverImage ?? null,
         },
-      },
+      });
+
+      await tx.clubMember.create({
+        data: {
+          clubId: c.id,
+          userId,
+          role: "OWNER",
+        },
+      });
+
+      return c;
     });
 
     const data: CreateClubSuccessData = {
       club: {
-        id: club.id,
-        name: club.name,
-        description: club.description,
-        isPublic: club.isPublic,
-        genre: club.genre,
-        coverImage: club.coverImage,
-        memberCount: club._count.members,
-        createdAt: club.createdAt,
+        id: createdClub.id,
+        name: createdClub.name,
+        description: createdClub.description,
+        isPublic: createdClub.isPublic,
+        genre: createdClub.genre,
+        coverImage: createdClub.coverImage,
+        memberCount: 1,
+        createdAt: createdClub.createdAt,
       },
     };
 
-    return res.status(201).json({
-      status: "success",
-      data,
-    });
+    return res.status(201).json({ status: "success", data });
   } catch (error) {
     console.error("POST /api/clubs failed:", error);
     return res.status(500).json({
@@ -151,6 +190,7 @@ export const getClubById: RequestHandler = async (req, res) => {
   try {
     const rawId = req.params.id;
     const id = Array.isArray(rawId) ? rawId[0] : rawId;
+    const userId = getOptionalUserIdFromRequest(req);
 
     if (!id) {
       return res.status(400).json({
@@ -167,6 +207,15 @@ export const getClubById: RequestHandler = async (req, res) => {
       },
     });
 
+    const isMember = userId
+      ? Boolean(
+          await prisma.clubMember.findUnique({
+            where: { userId_clubId: { userId, clubId: id } },
+            select: { id: true },
+          }),
+        )
+      : false;
+
     if (!club) {
       return res.status(404).json({
         error: { message: "Club not found" },
@@ -182,6 +231,7 @@ export const getClubById: RequestHandler = async (req, res) => {
         genre: club.genre,
         coverImage: club.coverImage,
         memberCount: club._count.members,
+        isMember,
         createdAt: club.createdAt,
       },
     };

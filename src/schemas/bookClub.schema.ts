@@ -2,7 +2,7 @@
  * Zod validation schemas for BookClub-related operations
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // Base BookClub schema
 export const BookClubSchema = z.object({
@@ -21,16 +21,20 @@ export const CreateBookClubSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, 'Book club name is required')
-    .max(100, 'Book club name must be at most 100 characters'),
+    .min(1, "Book club name is required")
+    .max(100, "Book club name must be at most 100 characters"),
   description: z
     .string()
     .trim()
-    .max(500, 'Description must be at most 500 characters')
+    .max(500, "Description must be at most 500 characters")
     .optional(),
   isPublic: z.boolean().optional().default(true),
-  genre: z.string().trim().max(80, 'Genre must be at most 80 characters').optional(),
-  coverImage: z.string().url('Cover image must be a valid URL').optional(),
+  genre: z
+    .string()
+    .trim()
+    .max(80, "Genre must be at most 80 characters")
+    .optional(),
+  coverImage: z.string().url("Cover image must be a valid URL").optional(),
 });
 
 // BookClub update schema
@@ -38,20 +42,25 @@ export const UpdateBookClubSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, 'Book club name is required')
-    .max(100, 'Book club name must be at most 100 characters')
+    .min(1, "Book club name is required")
+    .max(100, "Book club name must be at most 100 characters")
     .optional(),
   description: z
     .string()
     .trim()
-    .max(500, 'Description must be at most 500 characters')
+    .max(500, "Description must be at most 500 characters")
     .optional()
     .nullable(),
   isPublic: z.boolean().optional(),
-  genre: z.string().trim().max(80, 'Genre must be at most 80 characters').optional().nullable(),
+  genre: z
+    .string()
+    .trim()
+    .max(80, "Genre must be at most 80 characters")
+    .optional()
+    .nullable(),
   coverImage: z
     .string()
-    .url('Cover image must be a valid URL')
+    .url("Cover image must be a valid URL")
     .optional()
     .nullable(),
 });
@@ -65,6 +74,7 @@ export const BookClubResponseSchema = z.object({
   genre: z.string().nullable().optional(),
   coverImage: z.string().url().nullable().optional(),
   memberCount: z.number().int().nonnegative(),
+  isMember: z.boolean().optional(),
   createdAt: z.date(),
 });
 
