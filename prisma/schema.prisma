@@ -5,6 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model BookClub {
@@ -16,6 +17,7 @@ model BookClub {
   coverImage  String?
   createdAt   DateTime @default(now())
   members     ClubMember[]
+  joinRequests ClubJoinRequest[]
 }
 
 model User {
@@ -31,6 +33,8 @@ model User {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   clubMemberships ClubMember[]
+  joinRequests    ClubJoinRequest[] @relation("RequestedByUser")
+  reviewedRequests ClubJoinRequest[] @relation("ReviewedBy")
 }
 
 model ClubMember {
@@ -48,6 +52,26 @@ model ClubMember {
   @@index([userId])
 }
 
+model ClubJoinRequest {
+  id        String               @id @default(uuid())
+  clubId    String
+  userId    String
+  status    ClubJoinRequestStatus @default(PENDING)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  reviewedAt DateTime?
+  reviewedByUserId String?
+
+  club BookClub @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User     @relation("RequestedByUser", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("ReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, clubId])
+  @@index([clubId])
+  @@index([userId])
+  @@index([status])
+}
+
 enum Role {
   USER
   ADMIN
@@ -63,4 +87,10 @@ enum ClubMemberRole {
   MEMBER
   MODERATOR
   OWNER
+}
+
+enum ClubJoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
