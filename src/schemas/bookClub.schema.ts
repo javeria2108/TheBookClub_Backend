@@ -75,6 +75,7 @@ export const BookClubResponseSchema = z.object({
   coverImage: z.string().url().nullable().optional(),
   memberCount: z.number().int().nonnegative(),
   isMember: z.boolean().optional(),
+  memberRole: z.enum(["MEMBER", "MODERATOR", "OWNER"]).optional().nullable(),
   createdAt: z.date(),
 });
 

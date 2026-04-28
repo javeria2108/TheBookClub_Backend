@@ -7,6 +7,7 @@ import {
   leaveClub,
   getJoinRequests,
   updateJoinRequest,
+  updateMemberRole,
 } from "../controllers/clubController";
 import { requireAuth } from "../middleware/requireAuth";
 
@@ -29,6 +30,9 @@ router.get("/:id/join-requests", requireAuth, getJoinRequests);
 
 // Approve/reject join request (owner/moderator only)
 router.patch("/:id/join-requests/:reqId", requireAuth, updateJoinRequest);
+
+// Update member role (owner only)
+router.patch("/:id/members/:userId/role", requireAuth, updateMemberRole);
 
 // Get single club by ID
 router.get("/:id", getClubById);

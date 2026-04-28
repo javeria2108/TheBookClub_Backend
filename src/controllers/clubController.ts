@@ -207,14 +207,19 @@ export const getClubById: RequestHandler = async (req, res) => {
       },
     });
 
-    const isMember = userId
-      ? Boolean(
-          await prisma.clubMember.findUnique({
-            where: { userId_clubId: { userId, clubId: id } },
-            select: { id: true },
-          }),
-        )
-      : false;
+    let isMember = false;
+    let userRole: "MEMBER" | "MODERATOR" | "OWNER" | null = null;
+
+    if (userId) {
+      const membership = await prisma.clubMember.findUnique({
+        where: { userId_clubId: { userId, clubId: id } },
+        select: { role: true },
+      });
+      if (membership) {
+        isMember = true;
+        userRole = membership.role;
+      }
+    }
 
     if (!club) {
       return res.status(404).json({
@@ -232,6 +237,7 @@ export const getClubById: RequestHandler = async (req, res) => {
         coverImage: club.coverImage,
         memberCount: club._count.members,
         isMember,
+        memberRole: userRole,
         createdAt: club.createdAt,
       },
     };
@@ -623,6 +629,91 @@ export const updateJoinRequest: RequestHandler = async (req, res) => {
     console.error("PATCH /api/clubs/:id/join-requests/:reqId failed:", error);
     return res.status(500).json({
       error: { message: "Failed to update join request" },
+    });
+  }
+};
+
+export const updateMemberRole: RequestHandler = async (req, res) => {
+  try {
+    const rawClubId = req.params.id;
+    const clubId = Array.isArray(rawClubId) ? rawClubId[0] : rawClubId;
+    const rawMemberId = req.params.userId;
+    const targetUserId = Array.isArray(rawMemberId) ? rawMemberId[0] : rawMemberId;
+    const authUserId = res.locals.userId as string | undefined;
+    const { role } = req.body;
+
+    if (!clubId || !targetUserId) {
+      return res.status(400).json({
+        error: { message: "Club id and user id are required" },
+      });
+    }
+
+    if (!authUserId) {
+      return res.status(401).json({
+        error: { message: "Authentication required" },
+      });
+    }
+
+    if (!role || !["MEMBER", "MODERATOR"].includes(role)) {
+      return res.status(400).json({
+        error: { message: "Role must be MEMBER or MODERATOR" },
+      });
+    }
+
+    // Only owners can manage roles
+    const authMembership = await prisma.clubMember.findUnique({
+      where: { userId_clubId: { userId: authUserId, clubId } },
+      select: { role: true },
+    });
+
+    if (!authMembership || authMembership.role !== "OWNER") {
+      return res.status(403).json({
+        error: { message: "Only club owners can manage member roles" },
+      });
+    }
+
+    // Cannot change owner's role
+    if (targetUserId === authUserId) {
+      return res.status(400).json({
+        error: { message: "You cannot change your own role" },
+      });
+    }
+
+    // Get target member
+    const targetMembership = await prisma.clubMember.findUnique({
+      where: { userId_clubId: { userId: targetUserId, clubId } },
+    });
+
+    if (!targetMembership) {
+      return res.status(404).json({
+        error: { message: "Member not found in this club" },
+      });
+    }
+
+    if (targetMembership.role === "OWNER") {
+      return res.status(400).json({
+        error: { message: "Cannot change the role of the club owner" },
+      });
+    }
+
+    // Update member role
+    const updatedMembership = await prisma.clubMember.update({
+      where: { id: targetMembership.id },
+      data: { role },
+    });
+
+    return res.status(200).json({
+      status: "success",
+      data: {
+        memberId: updatedMembership.id,
+        userId: updatedMembership.userId,
+        role: updatedMembership.role,
+      },
+    });
+  } catch (error) {
+    console.error("PATCH /api/clubs/:id/members/:userId/role failed:", error);
+    return res.status(500).json({
+      error: { message: "Failed to update member role" },
     });
   }
 };
