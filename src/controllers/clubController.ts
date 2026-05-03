@@ -209,6 +209,8 @@ export const getClubById: RequestHandler = async (req, res) => {
 
     let isMember = false;
     let userRole: "MEMBER" | "MODERATOR" | "OWNER" | null = null;
+    let hasPendingJoinRequest = false;
+    let pendingJoinRequestId: string | null = null;
 
     if (userId) {
       const membership = await prisma.clubMember.findUnique({
@@ -218,6 +220,18 @@ export const getClubById: RequestHandler = async (req, res) => {
       if (membership) {
         isMember = true;
         userRole = membership.role;
+      } else {
+        const pendingRequest = await prisma.clubJoinRequest.findFirst({
+          where: {
+            clubId: id,
+            userId,
+            status: "PENDING",
+          },
+          select: { id: true },
+        });
+
+        hasPendingJoinRequest = Boolean(pendingRequest);
+        pendingJoinRequestId = pendingRequest?.id ?? null;
       }
     }
 
@@ -238,6 +252,8 @@ export const getClubById: RequestHandler = async (req, res) => {
         memberCount: club._count.members,
         isMember,
         memberRole: userRole,
+        hasPendingJoinRequest,
+        pendingJoinRequestId,
         createdAt: club.createdAt,
       },
     };
@@ -250,6 +266,57 @@ export const getClubById: RequestHandler = async (req, res) => {
     console.error("GET /api/clubs/:id failed:", error);
     return res.status(500).json({
       error: { message: "Failed to fetch club" },
+    });
+  }
+};
+
+export const cancelJoinRequest: RequestHandler = async (req, res) => {
+  try {
+    const rawId = req.params.id;
+    const clubId = Array.isArray(rawId) ? rawId[0] : rawId;
+    const userId = res.locals.userId as string | undefined;
+
+    if (!clubId) {
+      return res.status(400).json({
+        error: { message: "Club id is required" },
+      });
+    }
+
+    if (!userId) {
+      return res.status(401).json({
+        error: { message: "Authentication required" },
+      });
+    }
+
+    const request = await prisma.clubJoinRequest.findFirst({
+      where: {
+        clubId,
+        userId,
+        status: "PENDING",
+      },
+      select: { id: true },
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        error: { message: "No pending join request found for this club" },
+      });
+    }
+
+    await prisma.clubJoinRequest.delete({
+      where: { id: request.id },
+    });
+
+    return res.status(200).json({
+      status: "success",
+      data: {
+        message: "Join request cancelled",
+      },
+    });
+  } catch (error) {
+    console.error("DELETE /api/clubs/:id/join-request failed:", error);
+    return res.status(500).json({
+      error: { message: "Failed to cancel join request" },
     });
   }
 };

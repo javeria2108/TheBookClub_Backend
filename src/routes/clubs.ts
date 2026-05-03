@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  cancelJoinRequest,
   createClub,
   getClubById,
   getClubs,
@@ -21,6 +22,9 @@ router.post("/", requireAuth, createClub);
 
 //Join public club or request to join private club
 router.post("/:id/join", requireAuth, joinClub);
+
+// Cancel pending join request for a private club
+router.delete("/:id/join-request", requireAuth, cancelJoinRequest);
 
 //Leave a club
 router.delete("/:id/member", requireAuth, leaveClub);
