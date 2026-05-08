@@ -394,19 +394,45 @@ export const joinClub: RequestHandler = async (req, res) => {
     }
 
     if (!club.isPublic) {
-      // For private clubs, create a join request instead
-      try {
-        await prisma.clubJoinRequest.create({
+      // For private clubs, create or reuse an existing join request
+      // If a PENDING request already exists, report conflict. If a previous
+      // request exists but is not PENDING (APPROVED/REJECTED), reset it to
+      // PENDING so the user can re-request after leaving.
+      const existingRequest = await prisma.clubJoinRequest.findUnique({
+        where: { userId_clubId: { userId, clubId } },
+      });
+
+      if (existingRequest) {
+        if (existingRequest.status === "PENDING") {
+          return res.status(409).json({
+            error: { message: "You have already requested to join this club" },
+          });
+        }
+
+        // Reset historical request to PENDING so user can request again.
+        await prisma.clubJoinRequest.update({
+          where: { id: existingRequest.id },
           data: {
-            clubId,
-            userId,
+            status: "PENDING",
+            reviewedAt: null,
+            reviewedByUserId: null,
           },
         });
+
         return res.status(201).json({
           status: "success",
           data: {
             message: "Join request created. Waiting for approval.",
           },
+        });
+      }
+
+      // No existing request — create a new one
+      try {
+        await prisma.clubJoinRequest.create({ data: { clubId, userId } });
+        return res.status(201).json({
+          status: "success",
+          data: { message: "Join request created. Waiting for approval." },
         });
       } catch (error) {
         if (
@@ -488,6 +514,7 @@ export const leaveClub: RequestHandler = async (req, res) => {
 
     const membership = await prisma.clubMember.findUnique({
       where: { userId_clubId: { userId, clubId } },
+      select: { role: true },
     });
 
     if (!membership) {
@@ -496,8 +523,31 @@ export const leaveClub: RequestHandler = async (req, res) => {
       });
     }
 
+    if (membership.role === "OWNER") {
+      const remainingPrivilegedMembers = await prisma.clubMember.count({
+        where: {
+          clubId,
+          userId: { not: userId },
+          role: { in: ["OWNER", "MODERATOR"] },
+        },
+      });
+
+      if (remainingPrivilegedMembers === 0) {
+        return res.status(400).json({
+          error: {
+            message:
+              "Transfer ownership or add a moderator before leaving this club",
+          },
+        });
+      }
+    }
+
     await prisma.clubMember.delete({
       where: { userId_clubId: { userId, clubId } },
+    });
+
+    await prisma.clubJoinRequest.deleteMany({
+      where: { clubId, userId },
     });
 
     const memberCount = await prisma.clubMember.count({
@@ -543,7 +593,10 @@ export const getJoinRequests: RequestHandler = async (req, res) => {
       select: { role: true },
     });
 
-    if (!membership || (membership.role !== "OWNER" && membership.role !== "MODERATOR")) {
+    if (
+      !membership ||
+      (membership.role !== "OWNER" && membership.role !== "MODERATOR")
+    ) {
       return res.status(403).json({
         error: { message: "Only owners and moderators can view join requests" },
       });
@@ -618,9 +671,14 @@ export const updateJoinRequest: RequestHandler = async (req, res) => {
       select: { role: true },
     });
 
-    if (!membership || (membership.role !== "OWNER" && membership.role !== "MODERATOR")) {
+    if (
+      !membership ||
+      (membership.role !== "OWNER" && membership.role !== "MODERATOR")
+    ) {
       return res.status(403).json({
-        error: { message: "Only owners and moderators can review join requests" },
+        error: {
+          message: "Only owners and moderators can review join requests",
+        },
       });
     }
 
@@ -705,7 +763,9 @@ export const updateMemberRole: RequestHandler = async (req, res) => {
     const rawClubId = req.params.id;
     const clubId = Array.isArray(rawClubId) ? rawClubId[0] : rawClubId;
     const rawMemberId = req.params.userId;
-    const targetUserId = Array.isArray(rawMemberId) ? rawMemberId[0] : rawMemberId;
+    const targetUserId = Array.isArray(rawMemberId)
+      ? rawMemberId[0]
+      : rawMemberId;
     const authUserId = res.locals.userId as string | undefined;
     const { role } = req.body;
 
