@@ -72,6 +72,34 @@ model ClubJoinRequest {
   @@index([status])
 }
 
+model ChatRoom {
+  id        String   @id @default(cuid())
+  clubId    String
+  name      String?
+  createdAt DateTime @default(now())
+
+  club      BookClub @relation(fields: [clubId], references: [id])
+  messages  ChatMessage[]
+
+  @@index([clubId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  clubId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+
+  room  ChatRoom @relation(fields: [roomId], references: [id])
+  user  User     @relation(fields: [userId], references: [id])
+  club  BookClub @relation(fields: [clubId], references: [id])
+
+  @@index([clubId, roomId, createdAt])
+}
+
 enum Role {
   USER
   ADMIN

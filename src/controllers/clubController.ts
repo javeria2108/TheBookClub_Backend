@@ -141,7 +141,7 @@ export const createClub: RequestHandler = async (req, res) => {
       });
     }
 
-    // Create club and set creator as OWNER in a transaction
+    // Create club and set creator as OWNER in a transaction.
     const createdClub = await prisma.$transaction(async (tx) => {
       const c = await tx.bookClub.create({
         data: {
@@ -179,9 +179,19 @@ export const createClub: RequestHandler = async (req, res) => {
 
     return res.status(201).json({ status: "success", data });
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2028"
+    ) {
+      console.error("POST /api/clubs failed (P2028):", error);
+      return res.status(503).json({
+        error: { message: "Failed to create club. Please try again." },
+      });
+    }
+
     console.error("POST /api/clubs failed:", error);
     return res.status(500).json({
-      error: { message: "Failed to create club" },
+      error: { message: "Failed to create club. Please try again." },
     });
   }
 };
