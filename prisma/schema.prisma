@@ -18,6 +18,8 @@ model BookClub {
   createdAt   DateTime @default(now())
   members     ClubMember[]
   joinRequests ClubJoinRequest[]
+  chatRooms   ChatRoom[]
+  chatMessages ChatMessage[]
 }
 
 model User {
@@ -35,6 +37,7 @@ model User {
   clubMemberships ClubMember[]
   joinRequests    ClubJoinRequest[] @relation("RequestedByUser")
   reviewedRequests ClubJoinRequest[] @relation("ReviewedBy")
+  chatMessages    ChatMessage[]
 }
 
 model ClubMember {
