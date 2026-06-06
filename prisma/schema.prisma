@@ -9,35 +9,35 @@ datasource db {
 }
 
 model BookClub {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  isPublic    Boolean  @default(true)
-  genre       String?
-  coverImage  String?
-  createdAt   DateTime @default(now())
-  members     ClubMember[]
+  id           String            @id @default(uuid())
+  name         String
+  description  String?
+  isPublic     Boolean           @default(true)
+  genre        String?
+  coverImage   String?
+  createdAt    DateTime          @default(now())
+  members      ClubMember[]
   joinRequests ClubJoinRequest[]
-  chatRooms   ChatRoom[]
+  chatRooms    ChatRoom[]
   chatMessages ChatMessage[]
 }
 
 model User {
-  id              String       @id @default(uuid())
-  email           String       @unique
-  username        String       @unique
-  passwordHash    String?
-  role            Role         @default(USER)
-  isEmailVerified Boolean      @default(false)
-  isActive        Boolean      @default(true)
-  provider        AuthProvider @default(LOCAL)
-  providerId      String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  clubMemberships ClubMember[]
-  joinRequests    ClubJoinRequest[] @relation("RequestedByUser")
+  id               String            @id @default(uuid())
+  email            String            @unique
+  username         String            @unique
+  passwordHash     String?
+  role             Role              @default(USER)
+  isEmailVerified  Boolean           @default(false)
+  isActive         Boolean           @default(true)
+  provider         AuthProvider      @default(LOCAL)
+  providerId       String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  clubMemberships  ClubMember[]
+  joinRequests     ClubJoinRequest[] @relation("RequestedByUser")
   reviewedRequests ClubJoinRequest[] @relation("ReviewedBy")
-  chatMessages    ChatMessage[]
+  chatMessages     ChatMessage[]
 }
 
 model ClubMember {
@@ -56,18 +56,18 @@ model ClubMember {
 }
 
 model ClubJoinRequest {
-  id        String               @id @default(uuid())
-  clubId    String
-  userId    String
-  status    ClubJoinRequestStatus @default(PENDING)
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
-  reviewedAt DateTime?
+  id               String                @id @default(uuid())
+  clubId           String
+  userId           String
+  status           ClubJoinRequestStatus @default(PENDING)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  reviewedAt       DateTime?
   reviewedByUserId String?
 
-  club BookClub @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  user User     @relation("RequestedByUser", fields: [userId], references: [id], onDelete: Cascade)
-  reviewedBy User? @relation("ReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  club       BookClub @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user       User     @relation("RequestedByUser", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User?    @relation("ReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
   @@unique([userId, clubId])
   @@index([clubId])
@@ -81,24 +81,24 @@ model ChatRoom {
   name      String?
   createdAt DateTime @default(now())
 
-  club      BookClub @relation(fields: [clubId], references: [id])
-  messages  ChatMessage[]
+  club     BookClub      @relation(fields: [clubId], references: [id])
+  messages ChatMessage[]
 
   @@index([clubId])
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   roomId    String
   clubId    String
   userId    String
   content   String
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   deletedAt DateTime?
 
-  room  ChatRoom @relation(fields: [roomId], references: [id])
-  user  User     @relation(fields: [userId], references: [id])
-  club  BookClub @relation(fields: [clubId], references: [id])
+  room ChatRoom @relation(fields: [roomId], references: [id])
+  user User     @relation(fields: [userId], references: [id])
+  club BookClub @relation(fields: [clubId], references: [id])
 
   @@index([clubId, roomId, createdAt])
 }

@@ -7,7 +7,7 @@ import cors from "cors";
 import http from "http";
 import { Server as IOServer } from "socket.io";
 import jwt from "jsonwebtoken";
-import { Prisma } from "./generated/prisma/client";
+import { prisma } from "./lib/prisma";
 
 config();
 
@@ -28,8 +28,8 @@ app.use("/api/users", usersRouter);
 app.use("/api/auth", authRouter);
 
 // create server and attach io
-const server = http.createServer(app);
-const io = new IOServer(server, {
+const httpServer = http.createServer(app);
+const io = new IOServer(httpServer, {
   cors: { origin: "http://localhost:3000", credentials: true },
 });
 
@@ -57,12 +57,48 @@ io.use((socket, next) => {
   }
 });
 
+// basic handlers
+io.on("connection", (socket) => {
+  const userId = (socket as any).userId as string;
+
+  socket.on("joinRoom", async ({ roomId }) => {
+    socket.join(roomId);
+  });
+
+  socket.on("leaveRoom", ({ roomId }) => {
+    socket.leave(roomId);
+  });
+
+  socket.on("message", async ({ roomId, clubId, content }) => {
+    // persist message
+    const msg = await prisma.chatMessage.create({
+      data: {
+        roomId,
+        clubId,
+        userId,
+        content,
+      },
+      include: { user: { select: { id: true, username: true } } },
+    });
+    // broadcast
+    io.to(roomId).emit("message", {
+      id: msg.id,
+      roomId: msg.roomId,
+      clubId: msg.clubId,
+      userId: msg.userId,
+      username: msg.user.username,
+      content: msg.content,
+      createdAt: msg.createdAt,
+    });
+  });
+});
+
 const PORT = 5001;
-const server = app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-server.on("error", (error) => {
+httpServer.on("error", (error) => {
   console.error("Server error:", error);
 });
 
