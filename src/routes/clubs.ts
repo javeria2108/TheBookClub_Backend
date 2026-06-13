@@ -13,6 +13,7 @@ import {
   updateJoinRequest,
   updateMemberRole,
 } from "../controllers/clubController";
+import { getMessages } from "../controllers/chatControllers";
 import { requireAuth } from "../middleware/requireAuth";
 
 const router = express.Router();
@@ -52,5 +53,7 @@ router.patch("/:id/ownership", requireAuth, transferClubOwnership);
 
 // Get single club by ID
 router.get("/:id", getClubById);
+
+router.get("/:id/chat/messages", requireAuth, getMessages);
 
 export default router;

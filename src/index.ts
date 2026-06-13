@@ -62,34 +62,101 @@ io.on("connection", (socket) => {
   const userId = (socket as any).userId as string;
 
   socket.on("joinRoom", async ({ roomId }) => {
+    if (typeof roomId !== "string" || !roomId.trim()) {
+      socket.emit("chatError", { message: "Invalid room id" });
+      return;
+    }
+
     socket.join(roomId);
   });
 
   socket.on("leaveRoom", ({ roomId }) => {
+    if (typeof roomId !== "string" || !roomId.trim()) {
+      return;
+    }
+
     socket.leave(roomId);
   });
 
   socket.on("message", async ({ roomId, clubId, content }) => {
-    // persist message
-    const msg = await prisma.chatMessage.create({
-      data: {
-        roomId,
-        clubId,
-        userId,
-        content,
-      },
-      include: { user: { select: { id: true, username: true } } },
-    });
-    // broadcast
-    io.to(roomId).emit("message", {
-      id: msg.id,
-      roomId: msg.roomId,
-      clubId: msg.clubId,
-      userId: msg.userId,
-      username: msg.user.username,
-      content: msg.content,
-      createdAt: msg.createdAt,
-    });
+    try {
+      if (typeof roomId !== "string" || !roomId.trim()) {
+        socket.emit("chatError", { message: "Invalid room id" });
+        return;
+      }
+
+      if (typeof clubId !== "string" || !clubId.trim()) {
+        socket.emit("chatError", { message: "Invalid club id" });
+        return;
+      }
+
+      if (typeof content !== "string" || !content.trim()) {
+        socket.emit("chatError", { message: "Message cannot be empty" });
+        return;
+      }
+
+      const trimmedContent = content.trim();
+
+      if (trimmedContent.length > 1000) {
+        socket.emit("chatError", { message: "Message is too long" });
+        return;
+      }
+
+      // Only members can send messages in club chat.
+      const membership = await prisma.clubMember.findUnique({
+        where: { userId_clubId: { userId, clubId } },
+        select: { id: true },
+      });
+
+      if (!membership) {
+        socket.emit("chatError", {
+          message: "You must be a member of this club to send messages",
+        });
+        return;
+      }
+
+      // Ensure chat room exists and belongs to this club.
+      const existingRoom = await prisma.chatRoom.findUnique({
+        where: { id: roomId },
+        select: { id: true, clubId: true },
+      });
+
+      if (!existingRoom) {
+        await prisma.chatRoom.create({
+          data: {
+            id: roomId,
+            clubId,
+            name: "General",
+          },
+        });
+      } else if (existingRoom.clubId !== clubId) {
+        socket.emit("chatError", { message: "Room does not belong to this club" });
+        return;
+      }
+
+      const msg = await prisma.chatMessage.create({
+        data: {
+          roomId,
+          clubId,
+          userId,
+          content: trimmedContent,
+        },
+        include: { user: { select: { id: true, username: true } } },
+      });
+
+      io.to(roomId).emit("message", {
+        id: msg.id,
+        roomId: msg.roomId,
+        clubId: msg.clubId,
+        userId: msg.userId,
+        username: msg.user.username,
+        content: msg.content,
+        createdAt: msg.createdAt,
+      });
+    } catch (error) {
+      console.error("Socket message handler failed:", error);
+      socket.emit("chatError", { message: "Failed to send message. Please try again." });
+    }
   });
 });
 
