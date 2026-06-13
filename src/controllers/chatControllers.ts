@@ -37,7 +37,9 @@ export const getMessages: RequestHandler = async (req, res) => {
       });
     }
 
-    const where = roomId ? { clubId, roomId } : { clubId };
+    const where = roomId
+      ? { clubId, roomId, deletedAt: null }
+      : { clubId, deletedAt: null };
 
     const messages = await prisma.chatMessage.findMany({
       where,
