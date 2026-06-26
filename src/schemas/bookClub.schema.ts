@@ -34,7 +34,7 @@ export const CreateBookClubSchema = z.object({
     .trim()
     .max(80, "Genre must be at most 80 characters")
     .optional(),
-  coverImage: z.string().url("Cover image must be a valid URL").optional(),
+  coverImage: z.string().url("Cover image must be a valid URL"),
 });
 
 // BookClub update schema
@@ -61,8 +61,7 @@ export const UpdateBookClubSchema = z.object({
   coverImage: z
     .string()
     .url("Cover image must be a valid URL")
-    .optional()
-    .nullable(),
+    .optional(),
 });
 
 // BookClub response schema

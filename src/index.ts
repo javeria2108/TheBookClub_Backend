@@ -1,6 +1,8 @@
 import express from "express";
+import path from "path";
 import clubsRouter from "./routes/clubs";
 import usersRouter from "./routes/users";
+import uploadsRouter from "./routes/uploads";
 import { config } from "dotenv";
 import authRouter from "./routes/authRoutes";
 import cors from "cors";
@@ -23,9 +25,14 @@ app.use(
   }),
 );
 
+app.use(
+  "/uploads/clubs",
+  express.static(path.join(process.cwd(), "uploads", "clubs")),
+);
 app.use("/api/clubs", clubsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/uploads", uploadsRouter);
 
 // create server and attach io
 const httpServer = http.createServer(app);
@@ -81,100 +88,120 @@ io.on("connection", (socket) => {
     socket.leave(roomId);
   });
 
-  socket.on("message", async ({ roomId, clubId, content }, ack?: (payload: { ok: boolean; message?: string }) => void) => {
-    try {
-      if (!isValidId(roomId)) {
-        socket.emit("chatError", { message: "Invalid room id" });
-        ack?.({ ok: false, message: "Invalid room id" });
-        return;
-      }
+  socket.on(
+    "message",
+    async (
+      { roomId, clubId, content },
+      ack?: (payload: { ok: boolean; message?: string }) => void,
+    ) => {
+      try {
+        if (!isValidId(roomId)) {
+          socket.emit("chatError", { message: "Invalid room id" });
+          ack?.({ ok: false, message: "Invalid room id" });
+          return;
+        }
 
-      if (!isValidId(clubId)) {
-        socket.emit("chatError", { message: "Invalid club id" });
-        ack?.({ ok: false, message: "Invalid club id" });
-        return;
-      }
+        if (!isValidId(clubId)) {
+          socket.emit("chatError", { message: "Invalid club id" });
+          ack?.({ ok: false, message: "Invalid club id" });
+          return;
+        }
 
-      if (typeof content !== "string" || !content.trim()) {
-        socket.emit("chatError", { message: "Message cannot be empty" });
-        ack?.({ ok: false, message: "Message cannot be empty" });
-        return;
-      }
+        if (typeof content !== "string" || !content.trim()) {
+          socket.emit("chatError", { message: "Message cannot be empty" });
+          ack?.({ ok: false, message: "Message cannot be empty" });
+          return;
+        }
 
-      const trimmedContent = content.trim();
+        const trimmedContent = content.trim();
 
-      if (trimmedContent.length > 1000) {
-        socket.emit("chatError", { message: "Message is too long" });
-        ack?.({ ok: false, message: "Message is too long" });
-        return;
-      }
+        if (trimmedContent.length > 1000) {
+          socket.emit("chatError", { message: "Message is too long" });
+          ack?.({ ok: false, message: "Message is too long" });
+          return;
+        }
 
-      // Only members can send messages in club chat.
-      const membership = await prisma.clubMember.findUnique({
-        where: { userId_clubId: { userId, clubId } },
-        select: { id: true },
-      });
-
-      if (!membership) {
-        socket.emit("chatError", {
-          message: "You must be a member of this club to send messages",
+        // Only members can send messages in club chat.
+        const membership = await prisma.clubMember.findUnique({
+          where: { userId_clubId: { userId, clubId } },
+          select: { id: true },
         });
-        ack?.({ ok: false, message: "You must be a member of this club to send messages" });
-        return;
-      }
 
-      // Ensure chat room exists and belongs to this club.
-      const existingRoom = await prisma.chatRoom.findUnique({
-        where: { id: roomId },
-        select: { id: true, clubId: true },
-      });
+        if (!membership) {
+          socket.emit("chatError", {
+            message: "You must be a member of this club to send messages",
+          });
+          ack?.({
+            ok: false,
+            message: "You must be a member of this club to send messages",
+          });
+          return;
+        }
 
-      if (!existingRoom) {
-        await prisma.chatRoom.create({
+        // Ensure chat room exists and belongs to this club.
+        const existingRoom = await prisma.chatRoom.findUnique({
+          where: { id: roomId },
+          select: { id: true, clubId: true },
+        });
+
+        if (!existingRoom) {
+          await prisma.chatRoom.create({
+            data: {
+              id: roomId,
+              clubId,
+              name: "General",
+            },
+          });
+        } else if (existingRoom.clubId !== clubId) {
+          socket.emit("chatError", {
+            message: "Room does not belong to this club",
+          });
+          ack?.({ ok: false, message: "Room does not belong to this club" });
+          return;
+        }
+
+        const msg = await prisma.chatMessage.create({
           data: {
-            id: roomId,
+            roomId,
             clubId,
-            name: "General",
+            userId,
+            content: trimmedContent,
           },
+          include: { user: { select: { id: true, username: true } } },
         });
-      } else if (existingRoom.clubId !== clubId) {
-        socket.emit("chatError", { message: "Room does not belong to this club" });
-        ack?.({ ok: false, message: "Room does not belong to this club" });
-        return;
+
+        io.to(roomId).emit("message", {
+          id: msg.id,
+          roomId: msg.roomId,
+          clubId: msg.clubId,
+          userId: msg.userId,
+          username: msg.user.username,
+          content: msg.content,
+          createdAt: msg.createdAt,
+        });
+
+        ack?.({ ok: true });
+      } catch (error) {
+        console.error("Socket message handler failed:", error);
+        socket.emit("chatError", {
+          message: "Failed to send message. Please try again.",
+        });
+        ack?.({
+          ok: false,
+          message: "Failed to send message. Please try again.",
+        });
       }
-
-      const msg = await prisma.chatMessage.create({
-        data: {
-          roomId,
-          clubId,
-          userId,
-          content: trimmedContent,
-        },
-        include: { user: { select: { id: true, username: true } } },
-      });
-
-      io.to(roomId).emit("message", {
-        id: msg.id,
-        roomId: msg.roomId,
-        clubId: msg.clubId,
-        userId: msg.userId,
-        username: msg.user.username,
-        content: msg.content,
-        createdAt: msg.createdAt,
-      });
-
-      ack?.({ ok: true });
-    } catch (error) {
-      console.error("Socket message handler failed:", error);
-      socket.emit("chatError", { message: "Failed to send message. Please try again." });
-      ack?.({ ok: false, message: "Failed to send message. Please try again." });
-    }
-  });
+    },
+  );
 
   socket.on(
     "editMessage",
     async (
-      { messageId, clubId, content }: { messageId: string; clubId: string; content: string },
+      {
+        messageId,
+        clubId,
+        content,
+      }: { messageId: string; clubId: string; content: string },
       ack?: (payload: { ok: boolean; message?: string }) => void,
     ) => {
       try {
@@ -200,13 +227,22 @@ io.on("connection", (socket) => {
         });
 
         if (!membership) {
-          ack?.({ ok: false, message: "You must be a member to edit messages" });
+          ack?.({
+            ok: false,
+            message: "You must be a member to edit messages",
+          });
           return;
         }
 
         const existing = await prisma.chatMessage.findUnique({
           where: { id: messageId },
-          select: { id: true, userId: true, roomId: true, clubId: true, deletedAt: true },
+          select: {
+            id: true,
+            userId: true,
+            roomId: true,
+            clubId: true,
+            deletedAt: true,
+          },
         });
 
         if (!existing || existing.clubId !== clubId) {
@@ -219,7 +255,8 @@ io.on("connection", (socket) => {
           return;
         }
 
-        const canModerate = membership.role === "OWNER" || membership.role === "MODERATOR";
+        const canModerate =
+          membership.role === "OWNER" || membership.role === "MODERATOR";
         if (!canModerate && existing.userId !== userId) {
           ack?.({ ok: false, message: "You can only edit your own messages" });
           return;
@@ -250,7 +287,10 @@ io.on("connection", (socket) => {
         ack?.({ ok: true });
       } catch (error) {
         console.error("Socket editMessage handler failed:", error);
-        ack?.({ ok: false, message: "Failed to edit message. Please try again." });
+        ack?.({
+          ok: false,
+          message: "Failed to edit message. Please try again.",
+        });
       }
     },
   );
@@ -273,13 +313,22 @@ io.on("connection", (socket) => {
         });
 
         if (!membership) {
-          ack?.({ ok: false, message: "You must be a member to delete messages" });
+          ack?.({
+            ok: false,
+            message: "You must be a member to delete messages",
+          });
           return;
         }
 
         const existing = await prisma.chatMessage.findUnique({
           where: { id: messageId },
-          select: { id: true, userId: true, roomId: true, clubId: true, deletedAt: true },
+          select: {
+            id: true,
+            userId: true,
+            roomId: true,
+            clubId: true,
+            deletedAt: true,
+          },
         });
 
         if (!existing || existing.clubId !== clubId) {
@@ -287,9 +336,13 @@ io.on("connection", (socket) => {
           return;
         }
 
-        const canModerate = membership.role === "OWNER" || membership.role === "MODERATOR";
+        const canModerate =
+          membership.role === "OWNER" || membership.role === "MODERATOR";
         if (!canModerate && existing.userId !== userId) {
-          ack?.({ ok: false, message: "You can only delete your own messages" });
+          ack?.({
+            ok: false,
+            message: "You can only delete your own messages",
+          });
           return;
         }
 
@@ -311,10 +364,14 @@ io.on("connection", (socket) => {
         ack?.({ ok: true });
       } catch (error) {
         console.error("Socket deleteMessage handler failed:", error);
-        ack?.({ ok: false, message: "Failed to delete message. Please try again." });
+        ack?.({
+          ok: false,
+          message: "Failed to delete message. Please try again.",
+        });
       }
     },
   );
+
 });
 
 const PORT = 5001;

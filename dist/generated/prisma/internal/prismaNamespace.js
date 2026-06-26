@@ -47,7 +47,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.defineExtension = exports.NullsOrder = exports.QueryMode = exports.SortOrder = exports.ClubJoinRequestScalarFieldEnum = exports.ClubMemberScalarFieldEnum = exports.UserScalarFieldEnum = exports.BookClubScalarFieldEnum = exports.TransactionIsolationLevel = exports.ModelName = exports.AnyNull = exports.JsonNull = exports.DbNull = exports.NullTypes = exports.prismaVersion = exports.getExtensionContext = exports.Decimal = exports.Sql = exports.raw = exports.join = exports.empty = exports.sql = exports.PrismaClientValidationError = exports.PrismaClientInitializationError = exports.PrismaClientRustPanicError = exports.PrismaClientUnknownRequestError = exports.PrismaClientKnownRequestError = exports.validator = void 0;
+exports.defineExtension = exports.NullsOrder = exports.QueryMode = exports.SortOrder = exports.ChatMessageScalarFieldEnum = exports.ChatRoomScalarFieldEnum = exports.ClubJoinRequestScalarFieldEnum = exports.ClubMemberScalarFieldEnum = exports.UserScalarFieldEnum = exports.BookClubScalarFieldEnum = exports.TransactionIsolationLevel = exports.ModelName = exports.AnyNull = exports.JsonNull = exports.DbNull = exports.NullTypes = exports.prismaVersion = exports.getExtensionContext = exports.Decimal = exports.Sql = exports.raw = exports.join = exports.empty = exports.sql = exports.PrismaClientValidationError = exports.PrismaClientInitializationError = exports.PrismaClientRustPanicError = exports.PrismaClientUnknownRequestError = exports.PrismaClientKnownRequestError = exports.validator = void 0;
 const runtime = __importStar(require("@prisma/client/runtime/library"));
 /**
  * Validator
@@ -109,7 +109,9 @@ exports.ModelName = {
     BookClub: 'BookClub',
     User: 'User',
     ClubMember: 'ClubMember',
-    ClubJoinRequest: 'ClubJoinRequest'
+    ClubJoinRequest: 'ClubJoinRequest',
+    ChatRoom: 'ChatRoom',
+    ChatMessage: 'ChatMessage'
 };
 /**
  * Enums
@@ -158,6 +160,21 @@ exports.ClubJoinRequestScalarFieldEnum = {
     updatedAt: 'updatedAt',
     reviewedAt: 'reviewedAt',
     reviewedByUserId: 'reviewedByUserId'
+};
+exports.ChatRoomScalarFieldEnum = {
+    id: 'id',
+    clubId: 'clubId',
+    name: 'name',
+    createdAt: 'createdAt'
+};
+exports.ChatMessageScalarFieldEnum = {
+    id: 'id',
+    roomId: 'roomId',
+    clubId: 'clubId',
+    userId: 'userId',
+    content: 'content',
+    createdAt: 'createdAt',
+    deletedAt: 'deletedAt'
 };
 exports.SortOrder = {
     asc: 'asc',

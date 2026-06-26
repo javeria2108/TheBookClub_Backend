@@ -2,9 +2,12 @@ import type { Request, RequestHandler } from "express";
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
 import { getFirstValidationMessage } from "../utils/validation";
-import { CreateBookClubSchema } from "../schemas";
+import { CreateBookClubSchema, UpdateBookClubSchema } from "../schemas";
 import jwt from "jsonwebtoken";
-import type { CreateBookClubSchemaType } from "../schemas/bookClub.schema";
+import type {
+  CreateBookClubSchemaType,
+  UpdateBookClubSchemaType,
+} from "../schemas/bookClub.schema";
 import type {
   CreateClubSuccessData,
   GetClubByIdSuccessData,
@@ -149,7 +152,7 @@ export const createClub: RequestHandler = async (req, res) => {
           description: payload.description ?? null,
           isPublic: payload.isPublic,
           genre: payload.genre ?? null,
-          coverImage: payload.coverImage ?? null,
+          coverImage: payload.coverImage,
         },
       });
 
@@ -953,6 +956,109 @@ export const transferClubOwnership: RequestHandler = async (req, res) => {
     console.error("PATCH /api/clubs/:id/ownership failed:", error);
     return res.status(500).json({
       error: { message: "Failed to transfer ownership" },
+    });
+  }
+};
+
+export const updateClub: RequestHandler = async (req, res) => {
+  try {
+    const rawClubId = req.params.id;
+    const clubId = Array.isArray(rawClubId) ? rawClubId[0] : rawClubId;
+    const authUserId = res.locals.userId as string | undefined;
+
+    if (!clubId) {
+      return res.status(400).json({
+        error: { message: "Club id is required" },
+      });
+    }
+
+    if (!authUserId) {
+      return res.status(401).json({
+        error: { message: "Authentication required" },
+      });
+    }
+
+    const validation = UpdateBookClubSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        error: { message: getFirstValidationMessage(validation.error) },
+      });
+    }
+
+    const payload: UpdateBookClubSchemaType = validation.data;
+
+    if (Object.keys(payload).length === 0) {
+      return res.status(400).json({
+        error: { message: "At least one field must be provided to update" },
+      });
+    }
+
+    const authMembership = await prisma.clubMember.findUnique({
+      where: { userId_clubId: { userId: authUserId, clubId } },
+      select: { role: true },
+    });
+
+    if (!authMembership || authMembership.role !== "OWNER") {
+      return res.status(403).json({
+        error: { message: "Only club owners can update club settings" },
+      });
+    }
+
+    const updatedClub = await prisma.bookClub.update({
+      where: { id: clubId },
+      data: {
+        ...(payload.name !== undefined ? { name: payload.name } : {}),
+        ...(payload.description !== undefined
+          ? { description: payload.description }
+          : {}),
+        ...(payload.isPublic !== undefined ? { isPublic: payload.isPublic } : {}),
+        ...(payload.genre !== undefined ? { genre: payload.genre } : {}),
+        ...(payload.coverImage !== undefined
+          ? { coverImage: payload.coverImage }
+          : {}),
+      },
+      include: {
+        _count: {
+          select: { members: true },
+        },
+      },
+    });
+
+    const data: GetClubByIdSuccessData = {
+      club: {
+        id: updatedClub.id,
+        name: updatedClub.name,
+        description: updatedClub.description,
+        isPublic: updatedClub.isPublic,
+        genre: updatedClub.genre,
+        coverImage: updatedClub.coverImage,
+        memberCount: updatedClub._count.members,
+        isMember: true,
+        memberRole: "OWNER",
+        hasPendingJoinRequest: false,
+        pendingJoinRequestId: null,
+        createdAt: updatedClub.createdAt,
+      },
+    };
+
+    return res.status(200).json({
+      status: "success",
+      data,
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return res.status(404).json({
+        error: { message: "Club not found" },
+      });
+    }
+
+    console.error("PATCH /api/clubs/:id failed:", error);
+    return res.status(500).json({
+      error: { message: "Failed to update club" },
     });
   }
 };

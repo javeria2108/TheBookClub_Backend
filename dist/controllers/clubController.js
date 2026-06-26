@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateMemberRole = exports.updateJoinRequest = exports.getJoinRequests = exports.leaveClub = exports.joinClub = exports.getMyClubs = exports.cancelJoinRequest = exports.getClubById = exports.createClub = exports.getClubs = void 0;
+exports.deleteClub = exports.updateClub = exports.transferClubOwnership = exports.getClubMembers = exports.updateMemberRole = exports.updateJoinRequest = exports.getJoinRequests = exports.leaveClub = exports.joinClub = exports.getMyClubs = exports.cancelJoinRequest = exports.getClubById = exports.createClub = exports.getClubs = void 0;
 const client_1 = require("../generated/prisma/client");
 const prisma_1 = require("../lib/prisma");
 const validation_1 = require("../utils/validation");
@@ -115,7 +115,7 @@ const createClub = async (req, res) => {
                 error: { message: "Authentication required" },
             });
         }
-        // Create club and set creator as OWNER in a transaction
+        // Create club and set creator as OWNER in a transaction.
         const createdClub = await prisma_1.prisma.$transaction(async (tx) => {
             const c = await tx.bookClub.create({
                 data: {
@@ -123,7 +123,7 @@ const createClub = async (req, res) => {
                     description: payload.description ?? null,
                     isPublic: payload.isPublic,
                     genre: payload.genre ?? null,
-                    coverImage: payload.coverImage ?? null,
+                    coverImage: payload.coverImage,
                 },
             });
             await tx.clubMember.create({
@@ -150,9 +150,16 @@ const createClub = async (req, res) => {
         return res.status(201).json({ status: "success", data });
     }
     catch (error) {
+        if (error instanceof client_1.Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2028") {
+            console.error("POST /api/clubs failed (P2028):", error);
+            return res.status(503).json({
+                error: { message: "Failed to create club. Please try again." },
+            });
+        }
         console.error("POST /api/clubs failed:", error);
         return res.status(500).json({
-            error: { message: "Failed to create club" },
+            error: { message: "Failed to create club. Please try again." },
         });
     }
 };
@@ -346,20 +353,17 @@ const joinClub = async (req, res) => {
             });
         }
         if (!club.isPublic) {
-            // For private clubs, create or reuse an existing join request
-            // If a PENDING request already exists, report conflict. If a previous
-            // request exists but is not PENDING (APPROVED/REJECTED), reset it to
-            // PENDING so the user can re-request after leaving.
+            // For private clubs, keep only pending requests as active state.
+            // Any stale reviewed request row is deleted before creating a new one.
             const existingRequest = await prisma_1.prisma.clubJoinRequest.findUnique({
                 where: { userId_clubId: { userId, clubId } },
             });
+            if (existingRequest?.status === "PENDING") {
+                return res.status(409).json({
+                    error: { message: "You have already requested to join this club" },
+                });
+            }
             if (existingRequest) {
-                if (existingRequest.status === "PENDING") {
-                    return res.status(409).json({
-                        error: { message: "You have already requested to join this club" },
-                    });
-                }
-                // Reset historical request to PENDING so user can request again.
                 await prisma_1.prisma.clubJoinRequest.update({
                     where: { id: existingRequest.id },
                     data: {
@@ -370,12 +374,9 @@ const joinClub = async (req, res) => {
                 });
                 return res.status(201).json({
                     status: "success",
-                    data: {
-                        message: "Join request created. Waiting for approval.",
-                    },
+                    data: { message: "Join request created. Waiting for approval." },
                 });
             }
-            // No existing request — create a new one
             try {
                 await prisma_1.prisma.clubJoinRequest.create({ data: { clubId, userId } });
                 return res.status(201).json({
@@ -459,26 +460,14 @@ const leaveClub = async (req, res) => {
             });
         }
         if (membership.role === "OWNER") {
-            const remainingPrivilegedMembers = await prisma_1.prisma.clubMember.count({
-                where: {
-                    clubId,
-                    userId: { not: userId },
-                    role: { in: ["OWNER", "MODERATOR"] },
+            return res.status(400).json({
+                error: {
+                    message: "Club owners cannot leave directly. Transfer ownership or delete the club first.",
                 },
             });
-            if (remainingPrivilegedMembers === 0) {
-                return res.status(400).json({
-                    error: {
-                        message: "Transfer ownership or add a moderator before leaving this club",
-                    },
-                });
-            }
         }
         await prisma_1.prisma.clubMember.delete({
             where: { userId_clubId: { userId, clubId } },
-        });
-        await prisma_1.prisma.clubJoinRequest.deleteMany({
-            where: { clubId, userId },
         });
         const memberCount = await prisma_1.prisma.clubMember.count({
             where: { clubId },
@@ -519,13 +508,14 @@ const getJoinRequests = async (req, res) => {
             where: { userId_clubId: { userId, clubId } },
             select: { role: true },
         });
-        if (!membership || (membership.role !== "OWNER" && membership.role !== "MODERATOR")) {
+        if (!membership ||
+            (membership.role !== "OWNER" && membership.role !== "MODERATOR")) {
             return res.status(403).json({
                 error: { message: "Only owners and moderators can view join requests" },
             });
         }
         const requests = await prisma_1.prisma.clubJoinRequest.findMany({
-            where: { clubId },
+            where: { clubId, status: "PENDING" },
             include: {
                 user: {
                     select: {
@@ -588,9 +578,12 @@ const updateJoinRequest = async (req, res) => {
             where: { userId_clubId: { userId, clubId } },
             select: { role: true },
         });
-        if (!membership || (membership.role !== "OWNER" && membership.role !== "MODERATOR")) {
+        if (!membership ||
+            (membership.role !== "OWNER" && membership.role !== "MODERATOR")) {
             return res.status(403).json({
-                error: { message: "Only owners and moderators can review join requests" },
+                error: {
+                    message: "Only owners and moderators can review join requests",
+                },
             });
         }
         // Get the request
@@ -608,7 +601,7 @@ const updateJoinRequest = async (req, res) => {
             });
         }
         if (action === "APPROVE") {
-            // Approve: move user from request to member
+            // Approve: move user from request to member and remove request record.
             await prisma_1.prisma.$transaction(async (tx) => {
                 // Create club member
                 await tx.clubMember.create({
@@ -617,14 +610,9 @@ const updateJoinRequest = async (req, res) => {
                         userId: request.userId,
                     },
                 });
-                // Update request status
-                await tx.clubJoinRequest.update({
+                // Delete request to avoid keeping review history rows.
+                await tx.clubJoinRequest.delete({
                     where: { id: requestId },
-                    data: {
-                        status: "APPROVED",
-                        reviewedAt: new Date(),
-                        reviewedByUserId: userId,
-                    },
                 });
             });
             return res.status(200).json({
@@ -633,14 +621,9 @@ const updateJoinRequest = async (req, res) => {
             });
         }
         else {
-            // Reject: just update request status
-            await prisma_1.prisma.clubJoinRequest.update({
+            // Reject: remove request to avoid keeping review history rows.
+            await prisma_1.prisma.clubJoinRequest.delete({
                 where: { id: requestId },
-                data: {
-                    status: "REJECTED",
-                    reviewedAt: new Date(),
-                    reviewedByUserId: userId,
-                },
             });
             return res.status(200).json({
                 status: "success",
@@ -667,7 +650,9 @@ const updateMemberRole = async (req, res) => {
         const rawClubId = req.params.id;
         const clubId = Array.isArray(rawClubId) ? rawClubId[0] : rawClubId;
         const rawMemberId = req.params.userId;
-        const targetUserId = Array.isArray(rawMemberId) ? rawMemberId[0] : rawMemberId;
+        const targetUserId = Array.isArray(rawMemberId)
+            ? rawMemberId[0]
+            : rawMemberId;
         const authUserId = res.locals.userId;
         const { role } = req.body;
         if (!clubId || !targetUserId) {
@@ -737,3 +722,251 @@ const updateMemberRole = async (req, res) => {
     }
 };
 exports.updateMemberRole = updateMemberRole;
+const getClubMembers = async (req, res) => {
+    try {
+        const rawClubId = req.params.id;
+        const clubId = Array.isArray(rawClubId) ? rawClubId[0] : rawClubId;
+        const authUserId = res.locals.userId;
+        if (!clubId) {
+            return res.status(400).json({
+                error: { message: "Club id is required" },
+            });
+        }
+        if (!authUserId) {
+            return res.status(401).json({
+                error: { message: "Authentication required" },
+            });
+        }
+        const authMembership = await prisma_1.prisma.clubMember.findUnique({
+            where: { userId_clubId: { userId: authUserId, clubId } },
+            select: { role: true },
+        });
+        if (!authMembership || authMembership.role !== "OWNER") {
+            return res.status(403).json({
+                error: { message: "Only club owners can view club members" },
+            });
+        }
+        const members = await prisma_1.prisma.clubMember.findMany({
+            where: { clubId },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        username: true,
+                        email: true,
+                    },
+                },
+            },
+            orderBy: { joinedAt: "asc" },
+        });
+        return res.status(200).json({
+            status: "success",
+            data: {
+                members: members.map((m) => ({
+                    userId: m.userId,
+                    username: m.user.username,
+                    email: m.user.email,
+                    role: m.role,
+                    joinedAt: m.joinedAt,
+                })),
+            },
+        });
+    }
+    catch (error) {
+        console.error("GET /api/clubs/:id/members failed:", error);
+        return res.status(500).json({
+            error: { message: "Failed to fetch club members" },
+        });
+    }
+};
+exports.getClubMembers = getClubMembers;
+const transferClubOwnership = async (req, res) => {
+    try {
+        const rawClubId = req.params.id;
+        const clubId = Array.isArray(rawClubId) ? rawClubId[0] : rawClubId;
+        const authUserId = res.locals.userId;
+        const { targetUserId } = req.body;
+        if (!clubId || !targetUserId) {
+            return res.status(400).json({
+                error: { message: "Club id and target user id are required" },
+            });
+        }
+        if (!authUserId) {
+            return res.status(401).json({
+                error: { message: "Authentication required" },
+            });
+        }
+        if (targetUserId === authUserId) {
+            return res.status(400).json({
+                error: { message: "Cannot transfer ownership to yourself" },
+            });
+        }
+        const authMembership = await prisma_1.prisma.clubMember.findUnique({
+            where: { userId_clubId: { userId: authUserId, clubId } },
+        });
+        if (!authMembership || authMembership.role !== "OWNER") {
+            return res.status(403).json({
+                error: { message: "Only club owners can transfer ownership" },
+            });
+        }
+        const targetMembership = await prisma_1.prisma.clubMember.findUnique({
+            where: { userId_clubId: { userId: targetUserId, clubId } },
+        });
+        if (!targetMembership) {
+            return res.status(404).json({
+                error: { message: "Target user is not a member of this club" },
+            });
+        }
+        await prisma_1.prisma.$transaction(async (tx) => {
+            await tx.clubMember.update({
+                where: { id: targetMembership.id },
+                data: { role: "OWNER" },
+            });
+            await tx.clubMember.update({
+                where: { id: authMembership.id },
+                data: { role: "MEMBER" },
+            });
+        });
+        return res.status(200).json({
+            status: "success",
+            data: { message: "Ownership transferred successfully" },
+        });
+    }
+    catch (error) {
+        console.error("PATCH /api/clubs/:id/ownership failed:", error);
+        return res.status(500).json({
+            error: { message: "Failed to transfer ownership" },
+        });
+    }
+};
+exports.transferClubOwnership = transferClubOwnership;
+const updateClub = async (req, res) => {
+    try {
+        const rawClubId = req.params.id;
+        const clubId = Array.isArray(rawClubId) ? rawClubId[0] : rawClubId;
+        const authUserId = res.locals.userId;
+        if (!clubId) {
+            return res.status(400).json({
+                error: { message: "Club id is required" },
+            });
+        }
+        if (!authUserId) {
+            return res.status(401).json({
+                error: { message: "Authentication required" },
+            });
+        }
+        const validation = schemas_1.UpdateBookClubSchema.safeParse(req.body);
+        if (!validation.success) {
+            return res.status(400).json({
+                error: { message: (0, validation_1.getFirstValidationMessage)(validation.error) },
+            });
+        }
+        const payload = validation.data;
+        if (Object.keys(payload).length === 0) {
+            return res.status(400).json({
+                error: { message: "At least one field must be provided to update" },
+            });
+        }
+        const authMembership = await prisma_1.prisma.clubMember.findUnique({
+            where: { userId_clubId: { userId: authUserId, clubId } },
+            select: { role: true },
+        });
+        if (!authMembership || authMembership.role !== "OWNER") {
+            return res.status(403).json({
+                error: { message: "Only club owners can update club settings" },
+            });
+        }
+        const updatedClub = await prisma_1.prisma.bookClub.update({
+            where: { id: clubId },
+            data: {
+                ...(payload.name !== undefined ? { name: payload.name } : {}),
+                ...(payload.description !== undefined
+                    ? { description: payload.description }
+                    : {}),
+                ...(payload.isPublic !== undefined ? { isPublic: payload.isPublic } : {}),
+                ...(payload.genre !== undefined ? { genre: payload.genre } : {}),
+                ...(payload.coverImage !== undefined
+                    ? { coverImage: payload.coverImage }
+                    : {}),
+            },
+            include: {
+                _count: {
+                    select: { members: true },
+                },
+            },
+        });
+        const data = {
+            club: {
+                id: updatedClub.id,
+                name: updatedClub.name,
+                description: updatedClub.description,
+                isPublic: updatedClub.isPublic,
+                genre: updatedClub.genre,
+                coverImage: updatedClub.coverImage,
+                memberCount: updatedClub._count.members,
+                isMember: true,
+                memberRole: "OWNER",
+                hasPendingJoinRequest: false,
+                pendingJoinRequestId: null,
+                createdAt: updatedClub.createdAt,
+            },
+        };
+        return res.status(200).json({
+            status: "success",
+            data,
+        });
+    }
+    catch (error) {
+        if (error instanceof client_1.Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2025") {
+            return res.status(404).json({
+                error: { message: "Club not found" },
+            });
+        }
+        console.error("PATCH /api/clubs/:id failed:", error);
+        return res.status(500).json({
+            error: { message: "Failed to update club" },
+        });
+    }
+};
+exports.updateClub = updateClub;
+const deleteClub = async (req, res) => {
+    try {
+        const rawClubId = req.params.id;
+        const clubId = Array.isArray(rawClubId) ? rawClubId[0] : rawClubId;
+        const authUserId = res.locals.userId;
+        if (!clubId) {
+            return res.status(400).json({
+                error: { message: "Club id is required" },
+            });
+        }
+        if (!authUserId) {
+            return res.status(401).json({
+                error: { message: "Authentication required" },
+            });
+        }
+        const authMembership = await prisma_1.prisma.clubMember.findUnique({
+            where: { userId_clubId: { userId: authUserId, clubId } },
+            select: { role: true },
+        });
+        if (!authMembership || authMembership.role !== "OWNER") {
+            return res.status(403).json({
+                error: { message: "Only club owners can delete the club" },
+            });
+        }
+        await prisma_1.prisma.bookClub.delete({
+            where: { id: clubId },
+        });
+        return res.status(200).json({
+            status: "success",
+            data: { message: "Club deleted successfully" },
+        });
+    }
+    catch (error) {
+        console.error("DELETE /api/clubs/:id failed:", error);
+        return res.status(500).json({
+            error: { message: "Failed to delete club" },
+        });
+    }
+};
+exports.deleteClub = deleteClub;

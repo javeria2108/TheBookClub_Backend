@@ -10,6 +10,7 @@ import {
   joinClub,
   leaveClub,
   transferClubOwnership,
+  updateClub,
   updateJoinRequest,
   updateMemberRole,
 } from "../controllers/clubController";
@@ -35,6 +36,9 @@ router.delete("/:id/member", requireAuth, leaveClub);
 
 // Delete a club (owner only)
 router.delete("/:id", requireAuth, deleteClub);
+
+// Update club settings (owner only)
+router.patch("/:id", requireAuth, updateClub);
 
 // Get join requests for a club (owner/moderator only)
 router.get("/:id/join-requests", requireAuth, getJoinRequests);
