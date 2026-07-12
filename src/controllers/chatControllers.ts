@@ -1,6 +1,19 @@
 import type { RequestHandler } from "express";
 import { prisma } from "../lib/prisma";
 
+const DEFAULT_CHAT_PAGE_LIMIT = 50;
+const MAX_CHAT_PAGE_LIMIT = 100;
+
+function parseLimit(value: unknown): number {
+  const parsed = Number(value ?? DEFAULT_CHAT_PAGE_LIMIT);
+
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_CHAT_PAGE_LIMIT;
+  }
+
+  return Math.min(Math.max(Math.trunc(parsed), 1), MAX_CHAT_PAGE_LIMIT);
+}
+
 export const getMessages: RequestHandler = async (req, res) => {
   try {
     const rawClubId = req.params.id;
@@ -20,10 +33,15 @@ export const getMessages: RequestHandler = async (req, res) => {
       });
     }
 
-    const rawLimit = Number(req.query.limit ?? 50);
-    const limit = Number.isFinite(rawLimit)
-      ? Math.min(Math.max(Math.trunc(rawLimit), 1), 200)
-      : 50;
+    const limit = parseLimit(req.query.limit);
+    const cursor = (req.query.cursor as string | undefined)?.trim();
+    const cursorDate = cursor ? new Date(cursor) : null;
+
+    if (cursor && (!cursorDate || Number.isNaN(cursorDate.getTime()))) {
+      return res.status(400).json({
+        error: { message: "Invalid chat cursor" },
+      });
+    }
 
     // Only club members can read chat history.
     const membership = await prisma.clubMember.findUnique({
@@ -37,17 +55,25 @@ export const getMessages: RequestHandler = async (req, res) => {
       });
     }
 
-    const where = roomId
-      ? { clubId, roomId, deletedAt: null }
-      : { clubId, deletedAt: null };
+    const where = {
+      clubId,
+      ...(roomId ? { roomId } : {}),
+      ...(cursorDate ? { createdAt: { lt: cursorDate } } : {}),
+    };
 
     const messages = await prisma.chatMessage.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      take: limit,
+      take: limit + 1,
     });
 
-    const uniqueUserIds = Array.from(new Set(messages.map((m) => m.userId)));
+    const pageMessages = messages.slice(0, limit);
+    const hasMore = messages.length > limit;
+    const oldestMessage = pageMessages[pageMessages.length - 1];
+
+    const uniqueUserIds = Array.from(
+      new Set(pageMessages.map((m) => m.userId)),
+    );
     const users = await prisma.user.findMany({
       where: { id: { in: uniqueUserIds } },
       select: { id: true, username: true },
@@ -58,15 +84,28 @@ export const getMessages: RequestHandler = async (req, res) => {
     return res.status(200).json({
       status: "success",
       data: {
-        messages: messages.reverse().map((m) => ({
-          id: m.id,
-          roomId: m.roomId,
-          clubId: m.clubId,
-          userId: m.userId,
-          username: usernamesById.get(m.userId) ?? "Unknown user",
-          content: m.content,
-          createdAt: m.createdAt,
-        })),
+        messages: pageMessages.reverse().map((m) => {
+          const isDeleted = Boolean(m.deletedAt);
+
+          return {
+            id: m.id,
+            roomId: m.roomId,
+            clubId: m.clubId,
+            userId: m.userId,
+            username: usernamesById.get(m.userId) ?? "Unknown user",
+            content: isDeleted ? "" : m.content,
+            createdAt: m.createdAt,
+            isDeleted,
+            deletedAt: m.deletedAt,
+          };
+        }),
+        pagination: {
+          nextCursor:
+            hasMore && oldestMessage
+              ? oldestMessage.createdAt.toISOString()
+              : null,
+          hasMore,
+        },
       },
     });
   } catch (error) {
