@@ -1,6 +1,9 @@
 import jwt from "jsonwebtoken";
+import type { Response } from "express";
 
-export const generateToken = (userId: string, res: any): string => {
+const COOKIE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
+
+export const generateToken = (userId: string, res: Response): void => {
   const secret = process.env.JWT_SECRET;
 
   if (!secret) {
@@ -16,10 +19,8 @@ export const generateToken = (userId: string, res: any): string => {
     httpOnly: true, //so that user's browser cannot access the cookie via JavaScript
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-    maxAge: 1000 * 60 * 60 * 24 * 7,
+    maxAge: COOKIE_MAX_AGE_MS,
   });
-
-  return token;
 };
 
 export default generateToken;

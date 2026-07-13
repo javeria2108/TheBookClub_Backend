@@ -40,32 +40,62 @@ const io = new IOServer(httpServer, {
   cors: { origin: "http://localhost:3000", credentials: true },
 });
 
+type JwtPayload = {
+  id?: string;
+};
+
+function getCookieValue(
+  cookieHeader: string | undefined,
+  name: string,
+): string | null {
+  if (!cookieHeader) return null;
+
+  const cookie = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
+
+  if (!cookie) return null;
+
+  return decodeURIComponent(cookie.slice(name.length + 1));
+}
+
 // socket auth middleware
 io.use((socket, next) => {
   try {
-    const { cookie } = socket.handshake.headers;
-    // parse cookie header to get jwt value (simple parser)
-    const jwtCookie = cookie
-      ?.split(";")
-      .map((c) => c.trim())
-      .find((c) => c.startsWith("jwt="))
-      ?.slice("jwt=".length);
+    const secret = process.env.JWT_SECRET;
 
-    if (!jwtCookie) return next(new Error("Not authenticated"));
+    if (!secret) {
+      return next(new Error("JWT_SECRET is not configured"));
+    }
 
-    const payload = jwt.verify(jwtCookie, process.env.JWT_SECRET!) as {
-      id: string;
-    };
-    // attach userId to socket
-    (socket as any).userId = payload.id;
+    const token = getCookieValue(socket.handshake.headers.cookie, "jwt");
+
+    if (!token) {
+      return next(new Error("Not authenticated"));
+    }
+
+    const payload = jwt.verify(token, secret) as JwtPayload;
+
+    if (!payload.id) {
+      return next(new Error("Authentication error"));
+    }
+
+    socket.data.userId = payload.id;
     return next();
-  } catch (err) {
+  } catch {
     return next(new Error("Authentication error"));
   }
 });
 
 io.on("connection", (socket) => {
-  const userId = (socket as any).userId as string;
+  const userId = socket.data.userId as string | undefined;
+
+  if (!userId) {
+    socket.disconnect(true);
+    return;
+  }
+
   registerChatSocketHandlers(io, socket, userId);
 });
 

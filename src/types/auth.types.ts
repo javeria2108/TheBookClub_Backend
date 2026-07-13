@@ -1,4 +1,8 @@
-import type { UserRegisterInput, UserLoginInput, UserResponse } from "./user.types";
+import type {
+  UserRegisterInput,
+  UserLoginInput,
+  UserResponse,
+} from "./user.types";
 
 export type RegisterRequestBody = UserRegisterInput;
 export type LoginRequestBody = UserLoginInput;
@@ -10,5 +14,4 @@ export type AuthUserResponse = Pick<
 
 export interface AuthSuccessData {
   user: AuthUserResponse;
-  token: string;
 }
