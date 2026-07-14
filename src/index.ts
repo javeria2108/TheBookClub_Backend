@@ -8,19 +8,23 @@ import authRouter from "./routes/authRoutes";
 import cors from "cors";
 import http from "http";
 import { Server as IOServer } from "socket.io";
-import jwt from "jsonwebtoken";
+import { authConfig, getJwtSecret } from "./config/authConfig";
+import { verifyAuthToken } from "./utils/authToken";
+import { setSecurityHeaders } from "./middleware/securityHeaders";
 import { registerChatSocketHandlers } from "./sockets/chatSocket";
+import { getCookieValue } from "./utils/cookies";
 
 config();
+getJwtSecret();
 
 const app = express();
 
-//Body parsing middleware
-app.use(express.json());
+app.use(setSecurityHeaders);
+app.use(express.json({ limit: authConfig.jsonBodyLimit }));
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: authConfig.allowedFrontendOrigin,
     credentials: true,
   }),
 );
@@ -36,52 +40,27 @@ app.use("/api/uploads", uploadsRouter);
 
 // create server and attach io
 const httpServer = http.createServer(app);
-const io = new IOServer(httpServer, {
-  cors: { origin: "http://localhost:3000", credentials: true },
-});
-
-type JwtPayload = {
-  id?: string;
+type SocketData = {
+  userId: string;
 };
 
-function getCookieValue(
-  cookieHeader: string | undefined,
-  name: string,
-): string | null {
-  if (!cookieHeader) return null;
+const io = new IOServer(httpServer, {
+  cors: { origin: authConfig.allowedFrontendOrigin, credentials: true },
+});
 
-  const cookie = cookieHeader
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${name}=`));
-
-  if (!cookie) return null;
-
-  return decodeURIComponent(cookie.slice(name.length + 1));
-}
-
-// socket auth middleware
 io.use((socket, next) => {
   try {
-    const secret = process.env.JWT_SECRET;
-
-    if (!secret) {
-      return next(new Error("JWT_SECRET is not configured"));
-    }
-
-    const token = getCookieValue(socket.handshake.headers.cookie, "jwt");
+    const token = getCookieValue(
+      socket.handshake.headers.cookie,
+      authConfig.cookieName,
+    );
 
     if (!token) {
       return next(new Error("Not authenticated"));
     }
 
-    const payload = jwt.verify(token, secret) as JwtPayload;
-
-    if (!payload.id) {
-      return next(new Error("Authentication error"));
-    }
-
-    socket.data.userId = payload.id;
+    const payload = verifyAuthToken(token);
+    socket.data.userId = payload.userId;
     return next();
   } catch {
     return next(new Error("Authentication error"));
@@ -89,7 +68,8 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket) => {
-  const userId = socket.data.userId as string | undefined;
+  const socketData = socket.data as SocketData;
+  const userId = socketData.userId;
 
   if (!userId) {
     socket.disconnect(true);

@@ -3,7 +3,9 @@ import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
 import { getFirstValidationMessage } from "../utils/validation";
 import { CreateBookClubSchema, UpdateBookClubSchema } from "../schemas";
-import jwt from "jsonwebtoken";
+import { authConfig } from "../config/authConfig";
+import { verifyAuthToken } from "../utils/authToken";
+import { getCookieValue } from "../utils/cookies";
 import type {
   CreateBookClubSchemaType,
   UpdateBookClubSchemaType,
@@ -18,10 +20,6 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
 
-type JwtPayload = {
-  id?: string;
-};
-
 function toPositiveInt(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
   const parsed = Number(value);
@@ -30,22 +28,14 @@ function toPositiveInt(value: string | undefined, fallback: number): number {
 }
 
 function getOptionalUserIdFromRequest(req: Request) {
-  const authHeader = req.headers.authorization;
+  const token = getCookieValue(req.headers.cookie, authConfig.cookieName);
 
-  if (!authHeader?.startsWith("Bearer ")) {
-    return undefined;
-  }
-
-  const token = authHeader.slice("Bearer ".length).trim();
-  const secret = process.env.JWT_SECRET;
-
-  if (!secret) {
+  if (!token) {
     return undefined;
   }
 
   try {
-    const payload = jwt.verify(token, secret) as JwtPayload;
-    return payload.id;
+    return verifyAuthToken(token).userId;
   } catch {
     return undefined;
   }

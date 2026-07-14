@@ -1,7 +1,9 @@
 import { RequestHandler } from "express";
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcryptjs";
+import { authConfig, getAuthCookieOptions } from "../config/authConfig";
 import generateToken from "../utils/generateToken";
+import { sendError } from "../utils/apiResponse";
 import { getFirstValidationMessage } from "../utils/validation";
 import { UserLoginSchema, UserRegisterSchema } from "../schemas";
 import type { AuthSuccessData, AuthUserResponse } from "../types/auth.types";
@@ -24,32 +26,28 @@ const registerUser: RequestHandler = async (req, res) => {
   const validation = UserRegisterSchema.safeParse(req.body);
 
   if (!validation.success) {
-    return res.status(400).json({
-      status: "error",
-      error: {
-        code: "VALIDATION_ERROR",
-        message: getFirstValidationMessage(validation.error),
-      },
-    });
+    return sendError(
+      res,
+      400,
+      "VALIDATION_ERROR",
+      getFirstValidationMessage(validation.error),
+    );
   }
 
   const { name, email, password } = validation.data;
   const userExists = await prisma.user.findUnique({ where: { email } });
   if (userExists) {
-    return res.status(409).json({
-      status: "error",
-      error: {
-        code: "EMAIL_ALREADY_EXISTS",
-        message: "User with this email already exists.",
-      },
-    });
+    return sendError(
+      res,
+      409,
+      "EMAIL_ALREADY_EXISTS",
+      "User with this email already exists.",
+    );
   }
 
-  //hash password
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  //Create user
   const user = await prisma.user.create({
     data: {
       username: name,
@@ -72,38 +70,25 @@ const loginUser: RequestHandler = async (req, res) => {
   const validation = UserLoginSchema.safeParse(req.body);
 
   if (!validation.success) {
-    return res.status(400).json({
-      status: "error",
-      error: {
-        code: "VALIDATION_ERROR",
-        message: getFirstValidationMessage(validation.error),
-      },
-    });
+    return sendError(
+      res,
+      400,
+      "VALIDATION_ERROR",
+      getFirstValidationMessage(validation.error),
+    );
   }
 
   const { email, password } = validation.data;
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !user.passwordHash) {
-    return res.status(401).json({
-      status: "error",
-      error: {
-        code: "INVALID_CREDENTIALS",
-        message: "Invalid email or password.",
-      },
-    });
+    return sendError(res, 401, "INVALID_CREDENTIALS", "Invalid email or password.");
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
   if (!isPasswordValid) {
-    return res.status(401).json({
-      status: "error",
-      error: {
-        code: "INVALID_CREDENTIALS",
-        message: "Invalid email or password.",
-      },
-    });
+    return sendError(res, 401, "INVALID_CREDENTIALS", "Invalid email or password.");
   }
 
   generateToken(user.id, res);
@@ -120,13 +105,7 @@ const getMe: RequestHandler = async (_req, res) => {
   const userId = res.locals.userId as string | undefined;
 
   if (!userId) {
-    return res.status(401).json({
-      status: "error",
-      error: {
-        code: "AUTH_REQUIRED",
-        message: "You must be logged in to access this resource.",
-      },
-    });
+    return sendError(res, 401, "AUTH_REQUIRED", "You must be signed in to continue.");
   }
 
   const user = await prisma.user.findUnique({
@@ -140,13 +119,12 @@ const getMe: RequestHandler = async (_req, res) => {
   });
 
   if (!user) {
-    return res.status(401).json({
-      status: "error",
-      error: {
-        code: "USER_NOT_FOUND",
-        message: "Authenticated user could not be found.",
-      },
-    });
+    return sendError(
+      res,
+      401,
+      "SESSION_RESTORE_FAILED",
+      "Authenticated user could not be found.",
+    );
   }
 
   return res.status(200).json({
@@ -158,10 +136,8 @@ const getMe: RequestHandler = async (_req, res) => {
 };
 
 const logout: RequestHandler = async (_req, res) => {
-  res.cookie("jwt", "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+  res.clearCookie(authConfig.cookieName, {
+    ...getAuthCookieOptions(),
     expires: new Date(0),
   });
 
