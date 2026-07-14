@@ -1,7 +1,17 @@
-node_modules
+node_modules/
+
 # Keep environment variables out of version control
 .env
+.env.*
+!.env.example
 
+# Generated output
+dist/
+build/
+*.tsbuildinfo
 /src/generated/prisma
-/node_modules
+prisma.config.js
+prisma/*.js
+
+# Local uploads
 /uploads
