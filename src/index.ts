@@ -33,6 +33,10 @@ app.use(
   "/uploads/clubs",
   express.static(path.join(process.cwd(), "uploads", "clubs")),
 );
+app.use(
+  "/uploads/avatars",
+  express.static(path.join(process.cwd(), "uploads", "avatars")),
+);
 app.use("/api/clubs", clubsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/auth", authRouter);

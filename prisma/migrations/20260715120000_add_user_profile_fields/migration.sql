@@ -1,0 +1,4 @@
+ALTER TABLE "User"
+ADD COLUMN "avatarUrl" TEXT,
+ADD COLUMN "bio" TEXT,
+ADD COLUMN "favoriteGenres" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

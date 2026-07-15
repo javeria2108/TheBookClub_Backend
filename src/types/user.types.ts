@@ -7,6 +7,7 @@ import type {
   AuthProviderSchemaType,
   CreateUserSchemaType,
   RoleSchemaType,
+  UpdateUserProfileSchemaType,
   UpdateUserSchemaType,
   UserLoginSchemaType,
   UserRegisterSchemaType,
@@ -20,6 +21,7 @@ export type AuthProvider = AuthProviderSchemaType;
 export type User = UserSchemaType;
 export type CreateUserInput = CreateUserSchemaType;
 export type UpdateUserInput = UpdateUserSchemaType;
+export type UpdateUserProfileInput = UpdateUserProfileSchemaType;
 export type UserLoginInput = UserLoginSchemaType;
 export type UserRegisterInput = UserRegisterSchemaType;
 export type UserResponse = UserResponseSchemaType;

@@ -81,6 +81,9 @@ export const UserResponseSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
   username: z.string(),
+  avatarUrl: z.string().url().nullable(),
+  bio: z.string().nullable(),
+  favoriteGenres: z.array(z.string()),
   role: RoleSchema,
   isEmailVerified: z.boolean(),
   isActive: z.boolean(),
@@ -89,6 +92,47 @@ export const UserResponseSchema = z.object({
   updatedAt: z.date(),
 });
 
+export const MAX_PROFILE_BIO_LENGTH = 500;
+export const MAX_FAVORITE_GENRES = 8;
+export const MAX_FAVORITE_GENRE_LENGTH = 40;
+
+export const UpdateUserProfileSchema = z
+  .object({
+    username: z
+      .string()
+      .trim()
+      .min(3, "Username must be at least 3 characters")
+      .max(50, "Username must be at most 50 characters")
+      .regex(
+        /^[a-zA-Z0-9_-]+$/,
+        "Username can only contain letters, numbers, underscores, and hyphens",
+      )
+      .optional(),
+    bio: z
+      .string()
+      .trim()
+      .max(MAX_PROFILE_BIO_LENGTH, "Bio must be 500 characters or fewer")
+      .nullable()
+      .optional(),
+    favoriteGenres: z
+      .array(
+        z
+          .string()
+          .trim()
+          .min(1, "Favorite genres cannot be empty")
+          .max(
+            MAX_FAVORITE_GENRE_LENGTH,
+            "Favorite genres must be 40 characters or fewer",
+          ),
+      )
+      .max(MAX_FAVORITE_GENRES, "Choose up to 8 favorite genres")
+      .optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one profile field must be provided",
+  });
+
 // Type inference from Zod schemas
 export type UserSchemaType = z.infer<typeof UserSchema>;
 export type CreateUserSchemaType = z.infer<typeof CreateUserSchema>;
@@ -96,3 +140,4 @@ export type UpdateUserSchemaType = z.infer<typeof UpdateUserSchema>;
 export type UserLoginSchemaType = z.infer<typeof UserLoginSchema>;
 export type UserRegisterSchemaType = z.infer<typeof UserRegisterSchema>;
 export type UserResponseSchemaType = z.infer<typeof UserResponseSchema>;
+export type UpdateUserProfileSchemaType = z.infer<typeof UpdateUserProfileSchema>;
