@@ -7,8 +7,10 @@ import { z } from 'zod';
 // Enum schemas
 export const RoleSchema = z.enum(['USER', 'ADMIN']);
 export const AuthProviderSchema = z.enum(['LOCAL', 'GOOGLE', 'GITHUB']);
+export const ClubMemberRoleSchema = z.enum(['MEMBER', 'MODERATOR', 'OWNER']);
 export type RoleSchemaType = z.infer<typeof RoleSchema>;
 export type AuthProviderSchemaType = z.infer<typeof AuthProviderSchema>;
+export type ClubMemberRoleSchemaType = z.infer<typeof ClubMemberRoleSchema>;
 
 // Base User schema
 export const UserSchema = z.object({
@@ -92,6 +94,32 @@ export const UserResponseSchema = z.object({
   updatedAt: z.date(),
 });
 
+export const JoinedClubProfileSummarySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  description: z.string().nullable(),
+  isPublic: z.boolean(),
+  genre: z.string().nullable(),
+  coverImage: z.string().url().nullable(),
+  memberCount: z.number().int().nonnegative(),
+  memberRole: ClubMemberRoleSchema,
+  joinedAt: z.date(),
+  createdAt: z.date(),
+});
+
+export const UserProfileSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  username: z.string(),
+  avatarUrl: z.string().url().nullable(),
+  bio: z.string().nullable(),
+  favoriteGenres: z.array(z.string()),
+  role: RoleSchema,
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  joinedClubs: z.array(JoinedClubProfileSummarySchema),
+});
+
 export const MAX_PROFILE_BIO_LENGTH = 500;
 export const MAX_FAVORITE_GENRES = 8;
 export const MAX_FAVORITE_GENRE_LENGTH = 40;
@@ -141,3 +169,7 @@ export type UserLoginSchemaType = z.infer<typeof UserLoginSchema>;
 export type UserRegisterSchemaType = z.infer<typeof UserRegisterSchema>;
 export type UserResponseSchemaType = z.infer<typeof UserResponseSchema>;
 export type UpdateUserProfileSchemaType = z.infer<typeof UpdateUserProfileSchema>;
+export type JoinedClubProfileSummarySchemaType = z.infer<
+  typeof JoinedClubProfileSummarySchema
+>;
+export type UserProfileSchemaType = z.infer<typeof UserProfileSchema>;

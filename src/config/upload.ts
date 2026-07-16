@@ -25,7 +25,11 @@ export const USER_AVATAR_UPLOAD_DIR = path.join(
 );
 
 export function getPublicBaseUrl(): string {
-  return process.env.PUBLIC_BASE_URL ?? "http://localhost:5001";
+  return (
+    process.env.PUBLIC_BACKEND_URL ??
+    process.env.PUBLIC_BASE_URL ??
+    "http://localhost:5001"
+  );
 }
 
 export function buildClubCoverPublicUrl(filename: string): string {

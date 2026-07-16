@@ -3,6 +3,12 @@ import multer from "multer";
 import path from "path";
 import { randomUUID } from "crypto";
 
+const EXTENSION_BY_MIME_TYPE: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
+
 type CreateImageUploadOptions = {
   fieldName: string;
   uploadDir: string;
@@ -25,7 +31,10 @@ export function createImageUpload({
       cb(null, uploadDir);
     },
     filename: (_req, file, cb) => {
-      const extension = path.extname(file.originalname).toLowerCase() || ".jpg";
+      const extension =
+        EXTENSION_BY_MIME_TYPE[file.mimetype] ||
+        path.extname(file.originalname).toLowerCase() ||
+        ".jpg";
       cb(null, `${randomUUID()}${extension}`);
     },
   });

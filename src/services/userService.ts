@@ -8,33 +8,7 @@ import {
   USER_AVATAR_UPLOAD_DIR,
 } from "../config/upload";
 import type { ApiErrorCode } from "../utils/apiResponse";
-import type { UpdateUserProfileInput } from "../types/user.types";
-
-export type JoinedClubSummary = {
-  id: string;
-  name: string;
-  description: string | null;
-  isPublic: boolean;
-  genre: string | null;
-  coverImage: string | null;
-  memberCount: number;
-  memberRole: "MEMBER" | "MODERATOR" | "OWNER";
-  joinedAt: Date;
-  createdAt: Date;
-};
-
-export type UserProfileResponse = {
-  id: string;
-  email: string;
-  username: string;
-  avatarUrl: string | null;
-  bio: string | null;
-  favoriteGenres: string[];
-  role: "USER" | "ADMIN";
-  createdAt: Date;
-  updatedAt: Date;
-  joinedClubs: JoinedClubSummary[];
-};
+import type { UpdateUserProfileInput, UserProfile } from "../types/user.types";
 
 type UserProfileRecord = NonNullable<
   Awaited<ReturnType<typeof findUserProfileById>>
@@ -91,7 +65,7 @@ async function findUserProfileById(userId: string) {
   });
 }
 
-function toUserProfileResponse(user: UserProfileRecord): UserProfileResponse {
+function toUserProfile(user: UserProfileRecord): UserProfile {
   return {
     id: user.id,
     email: user.email,
@@ -207,20 +181,20 @@ async function removeLocalAvatarFile(avatarUrl: string | null) {
   }
 }
 
-export async function getUserProfile(userId: string): Promise<UserProfileResponse> {
+export async function getUserProfile(userId: string): Promise<UserProfile> {
   const user = await findUserProfileById(userId);
 
   if (!user) {
     throw new UserServiceError("USER_NOT_FOUND", "User profile was not found.", 404);
   }
 
-  return toUserProfileResponse(user);
+  return toUserProfile(user);
 }
 
 export async function updateUserProfile(
   userId: string,
   input: UpdateUserProfileInput,
-): Promise<UserProfileResponse> {
+): Promise<UserProfile> {
   const data = normalizeProfileUpdate(input);
 
   if (typeof data.username === "string") {
@@ -234,13 +208,24 @@ export async function updateUserProfile(
       select: userProfileSelect,
     });
 
-    return toUserProfileResponse(user);
+    return toUserProfile(user);
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2025"
     ) {
       throw new UserServiceError("USER_NOT_FOUND", "User profile was not found.", 404);
+    }
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      throw new UserServiceError(
+        "USERNAME_ALREADY_EXISTS",
+        "That username is already taken.",
+        409,
+      );
     }
 
     throw new UserServiceError(
@@ -254,7 +239,7 @@ export async function updateUserProfile(
 export async function updateUserAvatar(
   userId: string,
   avatarUrl: string,
-): Promise<UserProfileResponse> {
+): Promise<UserProfile> {
   const currentUser = await prisma.user.findUnique({
     where: { id: userId },
     select: { avatarUrl: true },
@@ -272,5 +257,5 @@ export async function updateUserAvatar(
 
   await removeLocalAvatarFile(currentUser.avatarUrl);
 
-  return toUserProfileResponse(user);
+  return toUserProfile(user);
 }
