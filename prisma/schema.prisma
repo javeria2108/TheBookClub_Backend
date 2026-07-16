@@ -22,6 +22,31 @@ model BookClub {
   chatMessages ChatMessage[]
 }
 
+model Book {
+  id             String   @id @default(uuid())
+  title          String
+  subtitle       String?
+  description    String?
+  authors        String[] @default([])
+  coverImage     String?
+  isbn10         String?  @unique
+  isbn13         String?  @unique
+  publisher      String?
+  publishedDate  String?
+  pageCount      Int?
+  language       String?
+  externalSource String?
+  externalId     String?
+  previewUrl     String?
+  infoUrl        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([externalSource, externalId])
+  @@index([title])
+  @@index([isbn13])
+}
+
 model User {
   id               String            @id @default(uuid())
   email            String            @unique

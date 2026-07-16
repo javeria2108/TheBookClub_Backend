@@ -5,6 +5,51 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log("🌱 Seeding database...");
+  await prisma.book.createMany({
+    data: [
+      {
+        title: "Atomic Habits",
+        subtitle: "An Easy & Proven Way to Build Good Habits & Break Bad Ones",
+        description:
+          "A practical guide to habit formation and small behavioral improvements.",
+        authors: ["James Clear"],
+        coverImage:
+          "https://books.google.com/books/content?id=fFCjDQAAQBAJ&printsec=frontcover&img=1&zoom=1",
+        isbn10: "0735211299",
+        isbn13: "9780735211292",
+        publisher: "Avery",
+        publishedDate: "2018-10-16",
+        pageCount: 320,
+        language: "en",
+      },
+      {
+        title: "The Alchemist",
+        description:
+          "A philosophical novel about a shepherd's journey and personal legend.",
+        authors: ["Paulo Coelho"],
+        isbn10: "0062315005",
+        isbn13: "9780062315007",
+        publisher: "HarperOne",
+        publishedDate: "2014",
+        pageCount: 208,
+        language: "en",
+      },
+      {
+        title: "Pride and Prejudice",
+        description:
+          "A classic novel about manners, misunderstanding, and social expectations.",
+        authors: ["Jane Austen"],
+        isbn10: "0141439513",
+        isbn13: "9780141439518",
+        publisher: "Penguin Classics",
+        publishedDate: "2002",
+        pageCount: 480,
+        language: "en",
+      },
+    ],
+    skipDuplicates: true,
+  });
+
   await prisma.bookClub.createMany({
     data: [
       {

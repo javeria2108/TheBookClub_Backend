@@ -2,6 +2,12 @@ import type { Response } from "express";
 
 export type ApiErrorCode =
   | "AUTH_REQUIRED"
+  | "BOOK_ALREADY_EXISTS"
+  | "BOOK_CREATE_FAILED"
+  | "BOOK_DELETE_FAILED"
+  | "BOOK_MANAGEMENT_FORBIDDEN"
+  | "BOOK_NOT_FOUND"
+  | "BOOK_UPDATE_FAILED"
   | "EMAIL_ALREADY_EXISTS"
   | "EXPIRED_TOKEN"
   | "FILE_TOO_LARGE"

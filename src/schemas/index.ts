@@ -4,3 +4,4 @@
 
 export * from './user.schema';
 export * from './bookClub.schema';
+export * from './book.schema';
