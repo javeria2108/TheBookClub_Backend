@@ -4,6 +4,8 @@ import {
   BookIdParamSchema,
   CreateBookSchema,
   GetBooksQuerySchema,
+  ImportGoogleBookSchema,
+  SearchGoogleBooksQuerySchema,
   UpdateBookSchema,
 } from "../schemas";
 import {
@@ -12,6 +14,8 @@ import {
   deleteBook,
   getBookById,
   getBooks,
+  importGoogleBook,
+  searchBookDiscovery,
   updateBook,
 } from "../services/bookService";
 import { sendError } from "../utils/apiResponse";
@@ -84,6 +88,30 @@ export const getBook: RequestHandler = async (req, res) => {
   }
 };
 
+export const searchBooks: RequestHandler = async (req, res) => {
+  const validation = SearchGoogleBooksQuerySchema.safeParse(req.query);
+
+  if (!validation.success) {
+    return sendError(
+      res,
+      400,
+      "VALIDATION_ERROR",
+      getFirstValidationMessage(validation.error),
+    );
+  }
+
+  try {
+    const results = await searchBookDiscovery(validation.data.q);
+
+    return res.status(200).json({
+      status: "success",
+      data: { results },
+    });
+  } catch (error) {
+    return handleBookServiceError(res, error);
+  }
+};
+
 export const createBookController: RequestHandler = async (req, res) => {
   const userId = getAuthenticatedUserId(res);
 
@@ -104,6 +132,36 @@ export const createBookController: RequestHandler = async (req, res) => {
 
   try {
     const book = await createBook(userId, validation.data);
+
+    return res.status(201).json({
+      status: "success",
+      data: { book },
+    });
+  } catch (error) {
+    return handleBookServiceError(res, error);
+  }
+};
+
+export const importBookController: RequestHandler = async (req, res) => {
+  const userId = getAuthenticatedUserId(res);
+
+  if (!userId) {
+    return sendError(res, 401, "AUTH_REQUIRED", "You must be signed in to continue.");
+  }
+
+  const validation = ImportGoogleBookSchema.safeParse(req.body);
+
+  if (!validation.success) {
+    return sendError(
+      res,
+      400,
+      "VALIDATION_ERROR",
+      getFirstValidationMessage(validation.error),
+    );
+  }
+
+  try {
+    const book = await importGoogleBook(userId, validation.data.googleBooksId);
 
     return res.status(201).json({
       status: "success",

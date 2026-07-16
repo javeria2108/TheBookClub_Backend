@@ -34,43 +34,52 @@ export const BookSchema = z.object({
   updatedAt: z.date(),
 });
 
-export const CreateBookSchema = z
-  .object({
-    title: z.string().trim().min(1, "Title is required").max(250),
-    subtitle: optionalTrimmedString,
-    description: optionalTrimmedString,
-    authors: z
-      .array(z.string().trim().min(1).max(120))
-      .max(12, "A book can have at most 12 authors")
-      .optional(),
-    coverImage: nullableUrlSchema,
-    isbn10: optionalTrimmedString,
-    isbn13: optionalTrimmedString,
-    publisher: optionalTrimmedString,
-    publishedDate: optionalTrimmedString,
-    pageCount: z.number().int().positive().max(10000).optional(),
-    language: optionalTrimmedString,
-    externalSource: optionalTrimmedString,
-    externalId: optionalTrimmedString,
-    previewUrl: nullableUrlSchema,
-    infoUrl: nullableUrlSchema,
-  })
-  .strict()
-  .refine(
-    (value) =>
-      (value.externalSource === undefined && value.externalId === undefined) ||
-      (value.externalSource !== undefined && value.externalId !== undefined),
-    {
-      message: "External source and external id must be provided together",
-    },
-  );
+const BookMutationSchema = z.object({
+  title: z.string().trim().min(1, "Title is required").max(250),
+  subtitle: optionalTrimmedString,
+  description: optionalTrimmedString,
+  authors: z
+    .array(z.string().trim().min(1).max(120))
+    .max(12, "A book can have at most 12 authors")
+    .optional(),
+  coverImage: nullableUrlSchema,
+  isbn10: optionalTrimmedString,
+  isbn13: optionalTrimmedString,
+  publisher: optionalTrimmedString,
+  publishedDate: optionalTrimmedString,
+  pageCount: z.number().int().positive().max(10000).optional(),
+  language: optionalTrimmedString,
+  externalSource: optionalTrimmedString,
+  externalId: optionalTrimmedString,
+  previewUrl: nullableUrlSchema,
+  infoUrl: nullableUrlSchema,
+});
 
-export const UpdateBookSchema = CreateBookSchema.partial().refine(
-  (value) => Object.keys(value).length > 0,
+function hasCompleteExternalIdentifier(value: {
+  externalSource?: string;
+  externalId?: string;
+}) {
+  return (
+    (value.externalSource === undefined && value.externalId === undefined) ||
+    (value.externalSource !== undefined && value.externalId !== undefined)
+  );
+}
+
+export const CreateBookSchema = BookMutationSchema.strict().refine(
+  hasCompleteExternalIdentifier,
   {
-    message: "At least one book field must be provided",
+    message: "External source and external id must be provided together",
   },
 );
+
+export const UpdateBookSchema = BookMutationSchema.partial()
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one book field must be provided",
+  })
+  .refine(hasCompleteExternalIdentifier, {
+    message: "External source and external id must be provided together",
+  });
 
 export const BookIdParamSchema = z.object({
   id: z.string().uuid("Book id must be a valid UUID"),
@@ -80,6 +89,22 @@ export const GetBooksQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(50).optional().default(10),
   search: z.string().trim().optional(),
+});
+
+export const SearchGoogleBooksQuerySchema = z.object({
+  q: z
+    .string()
+    .trim()
+    .min(4, "Type at least 4 characters to search books")
+    .max(120),
+});
+
+export const ImportGoogleBookSchema = z.object({
+  googleBooksId: z
+    .string()
+    .trim()
+    .min(1, "Google Books id is required")
+    .max(120),
 });
 
 export const BookListResponseSchema = z.object({
@@ -94,3 +119,7 @@ export type BookSchemaType = z.infer<typeof BookSchema>;
 export type CreateBookSchemaType = z.infer<typeof CreateBookSchema>;
 export type UpdateBookSchemaType = z.infer<typeof UpdateBookSchema>;
 export type GetBooksQuerySchemaType = z.infer<typeof GetBooksQuerySchema>;
+export type SearchGoogleBooksQuerySchemaType = z.infer<
+  typeof SearchGoogleBooksQuerySchema
+>;
+export type ImportGoogleBookSchemaType = z.infer<typeof ImportGoogleBookSchema>;
