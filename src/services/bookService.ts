@@ -91,10 +91,11 @@ function getPublishedYear(publishedDate: string | null): string | null {
 
 function toBookDiscoveryResult(record: BookRecord): BookDiscoveryResult {
   return {
+    source: "BOOKCIRCLE",
+    isSaved: true,
+    bookId: record.id,
     googleBooksId:
       record.externalSource === "GOOGLE_BOOKS" ? record.externalId : null,
-    internalBookId: record.id,
-    isImported: true,
     title: record.title,
     subtitle: record.subtitle,
     description: record.description,
@@ -269,7 +270,7 @@ async function searchInternalBookDiscovery(
 function getDiscoveryDedupeKey(book: BookDiscoveryResult): string {
   if (book.isbn13) return `isbn13:${book.isbn13}`;
   if (book.googleBooksId) return `google:${book.googleBooksId}`;
-  if (book.internalBookId) return `book:${book.internalBookId}`;
+  if (book.bookId) return `book:${book.bookId}`;
 
   return `title:${book.title.toLowerCase()}`;
 }
@@ -309,21 +310,11 @@ export async function assertCanManageBooks(userId: string): Promise<void> {
     return;
   }
 
-  const ownedClub = await prisma.clubMember.findFirst({
-    where: {
-      userId,
-      role: "OWNER",
-    },
-    select: { id: true },
-  });
-
-  if (!ownedClub) {
-    throw new BookServiceError(
-      "BOOK_MANAGEMENT_FORBIDDEN",
-      "Only admins and club owners can manage books.",
-      403,
-    );
-  }
+  throw new BookServiceError(
+    "BOOK_MANAGEMENT_FORBIDDEN",
+    "Only admins can directly manage book metadata.",
+    403,
+  );
 }
 
 export async function getBooks(query: GetBooksQuery): Promise<GetBooksResult> {
@@ -430,17 +421,38 @@ export async function importGoogleBook(
 ): Promise<Book> {
   await assertCanManageBooks(userId);
 
+  return findOrCreateGoogleBook(googleBooksId);
+}
+
+export async function findOrCreateGoogleBook(
+  googleBooksId: string,
+  transactionClient: Prisma.TransactionClient = prisma,
+): Promise<Book> {
   let metadata: ExternalBookMetadata | null = null;
 
   try {
     metadata = await getGoogleBookMetadata(googleBooksId);
-    const existingBook = await findExistingImportedBook(metadata);
+
+    const existingBook = metadata.isbn13
+      ? await transactionClient.book.findUnique({
+          where: { isbn13: metadata.isbn13 },
+          select: bookSelect,
+        })
+      : await transactionClient.book.findUnique({
+          where: {
+            externalSource_externalId: {
+              externalSource: metadata.externalSource,
+              externalId: metadata.externalId,
+            },
+          },
+          select: bookSelect,
+        });
 
     if (existingBook) {
-      return existingBook;
+      return toBook(existingBook);
     }
 
-    const book = await prisma.book.create({
+    const book = await transactionClient.book.create({
       data: normalizeBookCreateInput(
         toCreateBookInputFromExternalMetadata(metadata),
       ),
@@ -470,7 +482,7 @@ export async function importGoogleBook(
 
     throw new BookServiceError(
       "GOOGLE_BOOKS_IMPORT_FAILED",
-      "Unable to import this book. Please try again.",
+      "Unable to save this book. Please try again.",
       500,
     );
   }

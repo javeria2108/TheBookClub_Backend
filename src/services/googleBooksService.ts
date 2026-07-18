@@ -170,7 +170,10 @@ function getPublishedYear(publishedDate: string | undefined): string | null {
   return match?.[0] ?? null;
 }
 
-function normalizeGoogleVolume(volume: GoogleVolume): BookDiscoveryResult | null {
+function normalizeGoogleVolume(
+  volume: GoogleVolume,
+  options: { truncateDescription: boolean },
+): BookDiscoveryResult | null {
   const volumeInfo = volume.volumeInfo;
   const title = volumeInfo?.title?.trim();
 
@@ -181,12 +184,15 @@ function normalizeGoogleVolume(volume: GoogleVolume): BookDiscoveryResult | null
   const description = stripHtml(volumeInfo?.description);
 
   return {
+    source: GOOGLE_BOOKS_SOURCE,
+    isSaved: false,
+    bookId: null,
     googleBooksId: volume.id,
-    internalBookId: null,
-    isImported: false,
     title,
     subtitle: volumeInfo?.subtitle?.trim() || null,
-    description: truncateDescription(description),
+    description: options.truncateDescription
+      ? truncateDescription(description)
+      : description,
     authors: volumeInfo?.authors ?? [],
     coverImage:
       volumeInfo?.imageLinks?.thumbnail ??
@@ -233,7 +239,9 @@ export async function searchGoogleBooks(
       const parsedPayload = GoogleSearchResponseSchema.parse(payload);
 
       (parsedPayload.items ?? [])
-        .map(normalizeGoogleVolume)
+        .map((volume) =>
+          normalizeGoogleVolume(volume, { truncateDescription: true }),
+        )
         .filter((book): book is BookDiscoveryResult => Boolean(book))
         .forEach((book) => {
           results.set(book.googleBooksId ?? book.title, book);
@@ -271,7 +279,9 @@ export async function getGoogleBookMetadata(
     "GOOGLE_BOOKS_IMPORT_FAILED",
   );
   const parsedPayload = GoogleVolumeSchema.parse(payload);
-  const normalizedBook = normalizeGoogleVolume(parsedPayload);
+  const normalizedBook = normalizeGoogleVolume(parsedPayload, {
+    truncateDescription: false,
+  });
 
   if (!normalizedBook) {
     throw new GoogleBooksServiceError(

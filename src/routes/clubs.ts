@@ -15,6 +15,16 @@ import {
   updateMemberRole,
 } from "../controllers/clubController";
 import { getMessages } from "../controllers/chatControllers";
+import {
+  cancelClubReadingCycle,
+  completeClubReadingCycle,
+  createClubReadingCycle,
+  getClubReadingCycle,
+  getCurrentClubReadingCycle,
+  listClubReadingCycles,
+  startClubReadingCycle,
+  updateClubReadingCycle,
+} from "../controllers/readingCycleController";
 import { requireAuth } from "../middleware/requireAuth";
 
 const router = express.Router();
@@ -55,9 +65,34 @@ router.patch("/:id/members/:userId/role", requireAuth, updateMemberRole);
 // Transfer ownership (owner only)
 router.patch("/:id/ownership", requireAuth, transferClubOwnership);
 
-// Get single club by ID
-router.get("/:id", getClubById);
+router.get("/:clubId/reading-cycles", requireAuth, listClubReadingCycles);
+router.get("/:clubId/reading-cycles/current", getCurrentClubReadingCycle);
+router.get("/:clubId/reading-cycles/:cycleId", requireAuth, getClubReadingCycle);
+router.post("/:clubId/reading-cycles", requireAuth, createClubReadingCycle);
+router.patch(
+  "/:clubId/reading-cycles/:cycleId",
+  requireAuth,
+  updateClubReadingCycle,
+);
+router.post(
+  "/:clubId/reading-cycles/:cycleId/start",
+  requireAuth,
+  startClubReadingCycle,
+);
+router.post(
+  "/:clubId/reading-cycles/:cycleId/complete",
+  requireAuth,
+  completeClubReadingCycle,
+);
+router.post(
+  "/:clubId/reading-cycles/:cycleId/cancel",
+  requireAuth,
+  cancelClubReadingCycle,
+);
 
 router.get("/:id/chat/messages", requireAuth, getMessages);
+
+// Get single club by ID
+router.get("/:id", getClubById);
 
 export default router;

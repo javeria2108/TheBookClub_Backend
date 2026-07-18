@@ -29,9 +29,10 @@ export type GetBooksResult = {
 };
 
 export type BookDiscoveryResult = {
+  source: "BOOKCIRCLE" | "GOOGLE_BOOKS";
+  isSaved: boolean;
+  bookId: string | null;
   googleBooksId: string | null;
-  internalBookId: string | null;
-  isImported: boolean;
   title: string;
   subtitle: string | null;
   description: string | null;
@@ -50,7 +51,7 @@ export type BookDiscoveryResult = {
 
 export type ExternalBookMetadata = Omit<
   BookDiscoveryResult,
-  "publishedYear" | "internalBookId" | "isImported"
+  "publishedYear" | "source" | "isSaved" | "bookId"
 > & {
   googleBooksId: string;
   externalSource: "GOOGLE_BOOKS";
