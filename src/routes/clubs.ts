@@ -25,6 +25,10 @@ import {
   startClubReadingCycle,
   updateClubReadingCycle,
 } from "../controllers/readingCycleController";
+import {
+  getClubReadingProgress,
+  updateMyClubReadingProgress,
+} from "../controllers/readingProgressController";
 import { requireAuth } from "../middleware/requireAuth";
 
 const router = express.Router();
@@ -67,6 +71,16 @@ router.patch("/:id/ownership", requireAuth, transferClubOwnership);
 
 router.get("/:clubId/reading-cycles", requireAuth, listClubReadingCycles);
 router.get("/:clubId/reading-cycles/current", getCurrentClubReadingCycle);
+router.get(
+  "/:clubId/reading-cycles/:cycleId/progress",
+  requireAuth,
+  getClubReadingProgress,
+);
+router.put(
+  "/:clubId/reading-cycles/:cycleId/progress/me",
+  requireAuth,
+  updateMyClubReadingProgress,
+);
 router.get("/:clubId/reading-cycles/:cycleId", requireAuth, getClubReadingCycle);
 router.post("/:clubId/reading-cycles", requireAuth, createClubReadingCycle);
 router.patch(

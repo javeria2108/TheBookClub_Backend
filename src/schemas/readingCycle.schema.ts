@@ -58,6 +58,16 @@ export const ListReadingCyclesQuerySchema = z.object({
   status: ReadingCycleStatusSchema.optional(),
 });
 
+export const UpdateReadingProgressSchema = z
+  .object({
+    progressPercentage: z
+      .number()
+      .int("Progress must be a whole percentage")
+      .min(0, "Progress cannot be less than 0")
+      .max(100, "Progress cannot be greater than 100"),
+  })
+  .strict();
+
 export type CreateReadingCycleSchemaType = z.infer<
   typeof CreateReadingCycleSchema
 >;
@@ -66,4 +76,7 @@ export type UpdateReadingCycleSchemaType = z.infer<
 >;
 export type ListReadingCyclesQuerySchemaType = z.infer<
   typeof ListReadingCyclesQuerySchema
+>;
+export type UpdateReadingProgressSchemaType = z.infer<
+  typeof UpdateReadingProgressSchema
 >;

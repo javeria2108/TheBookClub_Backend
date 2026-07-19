@@ -69,6 +69,7 @@ model User {
   reviewedRequests ClubJoinRequest[] @relation("ReviewedBy")
   chatMessages     ChatMessage[]
   createdReadingCycles ReadingCycle[]
+  readingProgress  ReadingProgress[]
 }
 
 model ReadingCycle {
@@ -89,11 +90,34 @@ model ReadingCycle {
   club      BookClub @relation(fields: [clubId], references: [id], onDelete: Cascade)
   book      Book     @relation(fields: [bookId], references: [id], onDelete: Restrict)
   createdBy User     @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  progress  ReadingProgress[]
 
   @@index([clubId, status])
   @@index([bookId])
   @@index([createdByUserId])
   @@index([startDate])
+}
+
+model ReadingProgress {
+  id                 String                @id @default(uuid())
+  readingCycleId     String
+  userId             String
+  status             ReadingProgressStatus @default(NOT_STARTED)
+  progressPercentage Int                   @default(0)
+  startedAt          DateTime?
+  completedAt        DateTime?
+  lastUpdatedAt      DateTime
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  readingCycle ReadingCycle @relation(fields: [readingCycleId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([readingCycleId, userId])
+  @@index([readingCycleId])
+  @@index([userId])
+  @@index([status])
+  @@index([lastUpdatedAt])
 }
 
 model ClubMember {
@@ -187,4 +211,10 @@ enum ReadingCycleStatus {
   ACTIVE
   COMPLETED
   CANCELLED
+}
+
+enum ReadingProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
 }
