@@ -88,6 +88,10 @@ export const BookNominationIdParamSchema = BookVoteRoundIdParamSchema.extend({
   nominationId: z.string().uuid("Nomination id must be a valid UUID"),
 });
 
+export const ReadingEntryIdParamSchema = ClubIdParamSchema.extend({
+  entryId: z.string().uuid("Reading entry id must be a valid UUID"),
+});
+
 export const ReadingTargetTypeSchema = z.enum(["CHAPTERS", "PAGES", "CUSTOM"]);
 
 const ReadingTargetPayloadBaseSchema = z.object({
@@ -227,6 +231,39 @@ export const ResolveBookVoteWinnerSchema = z
   })
   .strict();
 
+export const ReadingEntryTypeSchema = z.enum(["REFLECTION", "QUOTE"]);
+
+export const ListReadingEntriesQuerySchema = z.object({
+  type: ReadingEntryTypeSchema.optional(),
+  author: z.enum(["me"]).optional(),
+  cursor: z.string().datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+export const CreateReadingEntrySchema = z
+  .object({
+    entryType: ReadingEntryTypeSchema,
+    body: z.string().trim().min(1).max(2000),
+    commentary: z.string().trim().max(1000).optional().nullable(),
+    readingTargetId: z.string().uuid().optional().nullable(),
+    pageNumber: z.number().int().positive().optional().nullable(),
+    chapterReference: z.string().trim().max(80).optional().nullable(),
+  })
+  .strict();
+
+export const UpdateReadingEntrySchema = z
+  .object({
+    body: z.string().trim().min(1).max(2000).optional(),
+    commentary: z.string().trim().max(1000).optional().nullable(),
+    readingTargetId: z.string().uuid().optional().nullable(),
+    pageNumber: z.number().int().positive().optional().nullable(),
+    chapterReference: z.string().trim().max(80).optional().nullable(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one reading entry field must be provided",
+  });
+
 export type CreateReadingCycleSchemaType = z.infer<
   typeof CreateReadingCycleSchema
 >;
@@ -278,4 +315,13 @@ export type CreateBookNominationSchemaType = z.infer<
 export type BookVoteSchemaType = z.infer<typeof BookVoteSchema>;
 export type ResolveBookVoteWinnerSchemaType = z.infer<
   typeof ResolveBookVoteWinnerSchema
+>;
+export type ListReadingEntriesQuerySchemaType = z.infer<
+  typeof ListReadingEntriesQuerySchema
+>;
+export type CreateReadingEntrySchemaType = z.infer<
+  typeof CreateReadingEntrySchema
+>;
+export type UpdateReadingEntrySchemaType = z.infer<
+  typeof UpdateReadingEntrySchema
 >;

@@ -23,6 +23,7 @@ model BookClub {
   readingCycles ReadingCycle[]
   discussionTopics DiscussionTopic[]
   bookVoteRounds BookVoteRound[]
+  readingEntries ReadingEntry[]
 }
 
 model Book {
@@ -78,6 +79,7 @@ model User {
   createdBookVoteRounds BookVoteRound[]
   bookNominations BookNomination[]
   bookVotes       BookVote[]
+  readingEntries  ReadingEntry[]
 }
 
 model ReadingCycle {
@@ -101,6 +103,7 @@ model ReadingCycle {
   progress  ReadingProgress[]
   targets   ReadingTarget[]
   discussionTopics DiscussionTopic[]
+  readingEntries ReadingEntry[]
 
   @@index([clubId, status])
   @@index([bookId])
@@ -124,6 +127,7 @@ model ReadingTarget {
 
   readingCycle ReadingCycle @relation(fields: [readingCycleId], references: [id], onDelete: Cascade)
   discussionTopics DiscussionTopic[]
+  readingEntries ReadingEntry[]
 
   @@unique([readingCycleId, sequence])
   @@index([readingCycleId])
@@ -332,6 +336,34 @@ model BookVote {
   @@index([userId])
 }
 
+model ReadingEntry {
+  id              String           @id @default(uuid())
+  clubId          String
+  readingCycleId  String
+  readingTargetId String?
+  userId          String
+  entryType       ReadingEntryType
+  body            String
+  commentary      String?
+  pageNumber      Int?
+  chapterReference String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+
+  club          BookClub       @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  readingCycle  ReadingCycle   @relation(fields: [readingCycleId], references: [id], onDelete: Cascade)
+  readingTarget ReadingTarget? @relation(fields: [readingTargetId], references: [id], onDelete: SetNull)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([clubId, createdAt])
+  @@index([readingCycleId, createdAt])
+  @@index([readingTargetId])
+  @@index([userId])
+  @@index([entryType])
+  @@index([deletedAt])
+}
+
 enum Role {
   USER
   ADMIN
@@ -386,4 +418,9 @@ enum BookVoteRoundStatus {
   OPEN
   CLOSED
   CANCELLED
+}
+
+enum ReadingEntryType {
+  REFLECTION
+  QUOTE
 }

@@ -54,6 +54,12 @@ import {
   updateMyClubReadingProgress,
 } from "../controllers/readingProgressController";
 import {
+  createClubReadingEntry,
+  deleteClubReadingEntry,
+  listClubReadingEntries,
+  updateClubReadingEntry,
+} from "../controllers/readingEntryController";
+import {
   createClubReadingTarget,
   deleteClubReadingTarget,
   listClubReadingTargets,
@@ -158,6 +164,26 @@ router.post(
   "/:clubId/reading-cycles/:cycleId/cancel",
   requireAuth,
   cancelClubReadingCycle,
+);
+router.get(
+  "/:clubId/reading-cycles/:cycleId/entries",
+  requireAuth,
+  listClubReadingEntries,
+);
+router.post(
+  "/:clubId/reading-cycles/:cycleId/entries",
+  requireAuth,
+  createClubReadingEntry,
+);
+router.patch(
+  "/:clubId/reading-entries/:entryId",
+  requireAuth,
+  updateClubReadingEntry,
+);
+router.delete(
+  "/:clubId/reading-entries/:entryId",
+  requireAuth,
+  deleteClubReadingEntry,
 );
 
 router.get(
