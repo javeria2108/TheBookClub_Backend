@@ -16,6 +16,17 @@ import {
 } from "../controllers/clubController";
 import { getMessages } from "../controllers/chatControllers";
 import {
+  createClubDiscussionPost,
+  createClubDiscussionTopic,
+  deleteClubDiscussionPost,
+  deleteClubDiscussionTopic,
+  getClubDiscussionTopic,
+  listClubDiscussionPosts,
+  listClubDiscussionTopics,
+  updateClubDiscussionPost,
+  updateClubDiscussionTopic,
+} from "../controllers/discussionController";
+import {
   cancelClubReadingCycle,
   completeClubReadingCycle,
   createClubReadingCycle,
@@ -29,6 +40,13 @@ import {
   getClubReadingProgress,
   updateMyClubReadingProgress,
 } from "../controllers/readingProgressController";
+import {
+  createClubReadingTarget,
+  deleteClubReadingTarget,
+  listClubReadingTargets,
+  reorderClubReadingTargets,
+  updateClubReadingTarget,
+} from "../controllers/readingTargetController";
 import { requireAuth } from "../middleware/requireAuth";
 
 const router = express.Router();
@@ -81,6 +99,31 @@ router.put(
   requireAuth,
   updateMyClubReadingProgress,
 );
+router.get(
+  "/:clubId/reading-cycles/:cycleId/targets",
+  requireAuth,
+  listClubReadingTargets,
+);
+router.post(
+  "/:clubId/reading-cycles/:cycleId/targets",
+  requireAuth,
+  createClubReadingTarget,
+);
+router.put(
+  "/:clubId/reading-cycles/:cycleId/targets/order",
+  requireAuth,
+  reorderClubReadingTargets,
+);
+router.patch(
+  "/:clubId/reading-cycles/:cycleId/targets/:targetId",
+  requireAuth,
+  updateClubReadingTarget,
+);
+router.delete(
+  "/:clubId/reading-cycles/:cycleId/targets/:targetId",
+  requireAuth,
+  deleteClubReadingTarget,
+);
 router.get("/:clubId/reading-cycles/:cycleId", requireAuth, getClubReadingCycle);
 router.post("/:clubId/reading-cycles", requireAuth, createClubReadingCycle);
 router.patch(
@@ -102,6 +145,52 @@ router.post(
   "/:clubId/reading-cycles/:cycleId/cancel",
   requireAuth,
   cancelClubReadingCycle,
+);
+
+router.get(
+  "/:clubId/discussions/topics",
+  requireAuth,
+  listClubDiscussionTopics,
+);
+router.post(
+  "/:clubId/discussions/topics",
+  requireAuth,
+  createClubDiscussionTopic,
+);
+router.get(
+  "/:clubId/discussions/topics/:topicId",
+  requireAuth,
+  getClubDiscussionTopic,
+);
+router.patch(
+  "/:clubId/discussions/topics/:topicId",
+  requireAuth,
+  updateClubDiscussionTopic,
+);
+router.delete(
+  "/:clubId/discussions/topics/:topicId",
+  requireAuth,
+  deleteClubDiscussionTopic,
+);
+router.get(
+  "/:clubId/discussions/topics/:topicId/posts",
+  requireAuth,
+  listClubDiscussionPosts,
+);
+router.post(
+  "/:clubId/discussions/topics/:topicId/posts",
+  requireAuth,
+  createClubDiscussionPost,
+);
+router.patch(
+  "/:clubId/discussions/posts/:postId",
+  requireAuth,
+  updateClubDiscussionPost,
+);
+router.delete(
+  "/:clubId/discussions/posts/:postId",
+  requireAuth,
+  deleteClubDiscussionPost,
 );
 
 router.get("/:id/chat/messages", requireAuth, getMessages);

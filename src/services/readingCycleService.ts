@@ -201,6 +201,30 @@ async function assertNoOpenCycle(
   throwOpenCycleConflict(status);
 }
 
+async function assertExistingTargetsFitCycleDates(
+  clubId: string,
+  cycleId: string,
+  startDate: Date,
+  targetEndDate: Date,
+) {
+  const conflictingTarget = await prisma.readingTarget.findFirst({
+    where: {
+      readingCycleId: cycleId,
+      readingCycle: { clubId },
+      OR: [{ startDate: { lt: startDate } }, { endDate: { gt: targetEndDate } }],
+    },
+    select: { title: true },
+  });
+
+  if (conflictingTarget) {
+    throw new ReadingCycleServiceError(
+      "READING_TARGET_OUTSIDE_CYCLE",
+      `Existing target "${conflictingTarget.title}" would fall outside the new cycle dates.`,
+      409,
+    );
+  }
+}
+
 async function resolveSelectedBook(
   input: CreateReadingCycleInput["bookSelection"],
   transactionClient: Prisma.TransactionClient,
@@ -388,6 +412,12 @@ export async function updateReadingCycle(
   const nextStartDate = input.startDate ?? existingCycle.startDate;
   const nextTargetEndDate = input.targetEndDate ?? existingCycle.targetEndDate;
   ensureTargetEndDateIsAfterStartDate(nextStartDate, nextTargetEndDate);
+  await assertExistingTargetsFitCycleDates(
+    clubId,
+    cycleId,
+    nextStartDate,
+    nextTargetEndDate,
+  );
 
   try {
     const cycle = await prisma.readingCycle.update({

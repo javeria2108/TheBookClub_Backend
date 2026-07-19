@@ -21,6 +21,7 @@ model BookClub {
   chatRooms    ChatRoom[]
   chatMessages ChatMessage[]
   readingCycles ReadingCycle[]
+  discussionTopics DiscussionTopic[]
 }
 
 model Book {
@@ -70,6 +71,8 @@ model User {
   chatMessages     ChatMessage[]
   createdReadingCycles ReadingCycle[]
   readingProgress  ReadingProgress[]
+  discussionTopics DiscussionTopic[]
+  discussionPosts  DiscussionPost[]
 }
 
 model ReadingCycle {
@@ -91,10 +94,35 @@ model ReadingCycle {
   book      Book     @relation(fields: [bookId], references: [id], onDelete: Restrict)
   createdBy User     @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
   progress  ReadingProgress[]
+  targets   ReadingTarget[]
+  discussionTopics DiscussionTopic[]
 
   @@index([clubId, status])
   @@index([bookId])
   @@index([createdByUserId])
+  @@index([startDate])
+}
+
+model ReadingTarget {
+  id             String            @id @default(uuid())
+  readingCycleId String
+  sequence       Int
+  title          String
+  description    String?
+  targetType     ReadingTargetType
+  startValue     Int?
+  endValue       Int?
+  startDate      DateTime
+  endDate        DateTime
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  readingCycle ReadingCycle @relation(fields: [readingCycleId], references: [id], onDelete: Cascade)
+  discussionTopics DiscussionTopic[]
+
+  @@unique([readingCycleId, sequence])
+  @@index([readingCycleId])
+  @@index([readingCycleId, sequence])
   @@index([startDate])
 }
 
@@ -183,6 +211,55 @@ model ChatMessage {
   @@index([clubId, roomId, createdAt])
 }
 
+model DiscussionTopic {
+  id              String              @id @default(uuid())
+  clubId          String
+  readingCycleId  String?
+  readingTargetId String?
+  createdByUserId String
+  title           String
+  prompt          String?
+  topicType       DiscussionTopicType @default(GENERAL)
+  isPinned        Boolean             @default(false)
+  isLocked        Boolean             @default(false)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  club          BookClub       @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  readingCycle  ReadingCycle?  @relation(fields: [readingCycleId], references: [id], onDelete: SetNull)
+  readingTarget ReadingTarget? @relation(fields: [readingTargetId], references: [id], onDelete: SetNull)
+  createdBy     User           @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  posts         DiscussionPost[]
+
+  @@index([clubId, isPinned, createdAt])
+  @@index([readingCycleId])
+  @@index([readingTargetId])
+  @@index([createdByUserId])
+  @@index([deletedAt])
+}
+
+model DiscussionPost {
+  id           String    @id @default(uuid())
+  topicId      String
+  userId       String
+  parentPostId String?
+  content      String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  topic       DiscussionTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentPost  DiscussionPost? @relation("DiscussionPostReplies", fields: [parentPostId], references: [id], onDelete: SetNull)
+  replies     DiscussionPost[] @relation("DiscussionPostReplies")
+
+  @@index([topicId, createdAt])
+  @@index([userId])
+  @@index([parentPostId])
+  @@index([deletedAt])
+}
+
 enum Role {
   USER
   ADMIN
@@ -217,4 +294,17 @@ enum ReadingProgressStatus {
   NOT_STARTED
   IN_PROGRESS
   COMPLETED
+}
+
+enum ReadingTargetType {
+  CHAPTERS
+  PAGES
+  CUSTOM
+}
+
+enum DiscussionTopicType {
+  GENERAL
+  READING_CYCLE
+  READING_TARGET
+  PROMPT
 }
