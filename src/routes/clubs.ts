@@ -16,6 +16,19 @@ import {
 } from "../controllers/clubController";
 import { getMessages } from "../controllers/chatControllers";
 import {
+  cancelClubBookVoteRound,
+  clearClubBookVote,
+  closeClubBookVoteRound,
+  createClubBookNomination,
+  createClubBookVoteRound,
+  deleteClubBookNomination,
+  listClubBookVoteRounds,
+  openClubBookVoteRound,
+  resolveClubBookVoteWinner,
+  updateClubBookVoteRound,
+  voteInClubBookRound,
+} from "../controllers/bookVoteController";
+import {
   createClubDiscussionPost,
   createClubDiscussionTopic,
   deleteClubDiscussionPost,
@@ -191,6 +204,54 @@ router.delete(
   "/:clubId/discussions/posts/:postId",
   requireAuth,
   deleteClubDiscussionPost,
+);
+
+router.get("/:clubId/book-vote-rounds", requireAuth, listClubBookVoteRounds);
+router.post("/:clubId/book-vote-rounds", requireAuth, createClubBookVoteRound);
+router.patch(
+  "/:clubId/book-vote-rounds/:roundId",
+  requireAuth,
+  updateClubBookVoteRound,
+);
+router.post(
+  "/:clubId/book-vote-rounds/:roundId/open",
+  requireAuth,
+  openClubBookVoteRound,
+);
+router.post(
+  "/:clubId/book-vote-rounds/:roundId/close",
+  requireAuth,
+  closeClubBookVoteRound,
+);
+router.post(
+  "/:clubId/book-vote-rounds/:roundId/cancel",
+  requireAuth,
+  cancelClubBookVoteRound,
+);
+router.post(
+  "/:clubId/book-vote-rounds/:roundId/nominations",
+  requireAuth,
+  createClubBookNomination,
+);
+router.delete(
+  "/:clubId/book-vote-rounds/:roundId/nominations/:nominationId",
+  requireAuth,
+  deleteClubBookNomination,
+);
+router.put(
+  "/:clubId/book-vote-rounds/:roundId/vote",
+  requireAuth,
+  voteInClubBookRound,
+);
+router.delete(
+  "/:clubId/book-vote-rounds/:roundId/vote",
+  requireAuth,
+  clearClubBookVote,
+);
+router.post(
+  "/:clubId/book-vote-rounds/:roundId/winner",
+  requireAuth,
+  resolveClubBookVoteWinner,
 );
 
 router.get("/:id/chat/messages", requireAuth, getMessages);

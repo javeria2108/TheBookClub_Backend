@@ -80,6 +80,14 @@ export const DiscussionPostIdParamSchema = ClubIdParamSchema.extend({
   postId: z.string().uuid("Discussion post id must be a valid UUID"),
 });
 
+export const BookVoteRoundIdParamSchema = ClubIdParamSchema.extend({
+  roundId: z.string().uuid("Vote round id must be a valid UUID"),
+});
+
+export const BookNominationIdParamSchema = BookVoteRoundIdParamSchema.extend({
+  nominationId: z.string().uuid("Nomination id must be a valid UUID"),
+});
+
 export const ReadingTargetTypeSchema = z.enum(["CHAPTERS", "PAGES", "CUSTOM"]);
 
 const ReadingTargetPayloadBaseSchema = z.object({
@@ -175,6 +183,50 @@ export const UpdateDiscussionPostSchema = z
   })
   .strict();
 
+export const CreateBookVoteRoundSchema = z
+  .object({
+    title: z.string().trim().min(3, "Title is required").max(140),
+    description: z.string().trim().max(800).optional().nullable(),
+    opensAt: IsoDateSchema.optional().nullable(),
+    closesAt: IsoDateSchema.optional().nullable(),
+  })
+  .strict();
+
+export const UpdateBookVoteRoundSchema = z
+  .object({
+    title: z.string().trim().min(3).max(140).optional(),
+    description: z.string().trim().max(800).optional().nullable(),
+    opensAt: IsoDateSchema.optional().nullable(),
+    closesAt: IsoDateSchema.optional().nullable(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one vote-round field must be provided",
+  });
+
+export const CreateBookNominationSchema = z
+  .object({
+    bookId: z.string().uuid("Book id must be a valid UUID").optional(),
+    googleBooksId: z.string().trim().min(1).max(120).optional(),
+    reason: z.string().trim().max(1000).optional().nullable(),
+  })
+  .strict()
+  .refine((value) => Boolean(value.bookId) !== Boolean(value.googleBooksId), {
+    message: "Choose either a saved BookCircle book or a Google Books result.",
+  });
+
+export const BookVoteSchema = z
+  .object({
+    nominationId: z.string().uuid("Nomination id must be a valid UUID"),
+  })
+  .strict();
+
+export const ResolveBookVoteWinnerSchema = z
+  .object({
+    nominationId: z.string().uuid("Nomination id must be a valid UUID"),
+  })
+  .strict();
+
 export type CreateReadingCycleSchemaType = z.infer<
   typeof CreateReadingCycleSchema
 >;
@@ -213,4 +265,17 @@ export type CreateDiscussionPostSchemaType = z.infer<
 >;
 export type UpdateDiscussionPostSchemaType = z.infer<
   typeof UpdateDiscussionPostSchema
+>;
+export type CreateBookVoteRoundSchemaType = z.infer<
+  typeof CreateBookVoteRoundSchema
+>;
+export type UpdateBookVoteRoundSchemaType = z.infer<
+  typeof UpdateBookVoteRoundSchema
+>;
+export type CreateBookNominationSchemaType = z.infer<
+  typeof CreateBookNominationSchema
+>;
+export type BookVoteSchemaType = z.infer<typeof BookVoteSchema>;
+export type ResolveBookVoteWinnerSchemaType = z.infer<
+  typeof ResolveBookVoteWinnerSchema
 >;
