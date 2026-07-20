@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import booksRouter from "./routes/books";
 import clubsRouter from "./routes/clubs";
+import homepageRouter from "./routes/homepage";
 import notificationsRouter from "./routes/notifications";
 import usersRouter from "./routes/users";
 import uploadsRouter from "./routes/uploads";
@@ -35,6 +36,7 @@ app.use(
   express.static(path.join(process.cwd(), "uploads", "avatars")),
 );
 app.use("/api/clubs", clubsRouter);
+app.use("/api/homepage", homepageRouter);
 app.use("/api/books", booksRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/users", usersRouter);

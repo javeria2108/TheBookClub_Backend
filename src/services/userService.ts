@@ -14,6 +14,8 @@ type UserProfileRecord = NonNullable<
   Awaited<ReturnType<typeof findUserProfileById>>
 >;
 
+const CURRENT_READING_CYCLE_STATUSES = ["ACTIVE", "PLANNED"] as const;
+
 export class UserServiceError extends Error {
   constructor(
     public readonly code: ApiErrorCode,
@@ -52,6 +54,26 @@ const userProfileSelect = {
           _count: {
             select: { members: true },
           },
+          readingCycles: {
+            where: { status: { in: [...CURRENT_READING_CYCLE_STATUSES] } },
+            orderBy: { startDate: "asc" },
+            select: {
+              id: true,
+              clubId: true,
+              bookId: true,
+              status: true,
+              startDate: true,
+              targetEndDate: true,
+              goalDescription: true,
+              createdByUserId: true,
+              startedAt: true,
+              completedAt: true,
+              cancelledAt: true,
+              createdAt: true,
+              updatedAt: true,
+              book: true,
+            },
+          },
         },
       },
     },
@@ -76,18 +98,26 @@ function toUserProfile(user: UserProfileRecord): UserProfile {
     role: user.role,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
-    joinedClubs: user.clubMemberships.map((membership) => ({
-      id: membership.club.id,
-      name: membership.club.name,
-      description: membership.club.description,
-      isPublic: membership.club.isPublic,
-      genre: membership.club.genre,
-      coverImage: membership.club.coverImage,
-      memberCount: membership.club._count.members,
-      memberRole: membership.role,
-      joinedAt: membership.joinedAt,
-      createdAt: membership.club.createdAt,
-    })),
+    joinedClubs: user.clubMemberships.map((membership) => {
+      const currentReadingCycle =
+        membership.club.readingCycles.find((cycle) => cycle.status === "ACTIVE") ??
+        membership.club.readingCycles.find((cycle) => cycle.status === "PLANNED") ??
+        null;
+
+      return {
+        id: membership.club.id,
+        name: membership.club.name,
+        description: membership.club.description,
+        isPublic: membership.club.isPublic,
+        genre: membership.club.genre,
+        coverImage: membership.club.coverImage,
+        memberCount: membership.club._count.members,
+        memberRole: membership.role,
+        currentReadingCycle,
+        joinedAt: membership.joinedAt,
+        createdAt: membership.club.createdAt,
+      };
+    }),
   };
 }
 

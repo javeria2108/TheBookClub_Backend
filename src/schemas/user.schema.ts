@@ -103,6 +103,7 @@ export const JoinedClubProfileSummarySchema = z.object({
   coverImage: z.string().url().nullable(),
   memberCount: z.number().int().nonnegative(),
   memberRole: ClubMemberRoleSchema,
+  currentReadingCycle: z.any().nullable(),
   joinedAt: z.date(),
   createdAt: z.date(),
 });

@@ -20,6 +20,7 @@ import type {
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
+const CURRENT_READING_CYCLE_STATUSES = ["ACTIVE", "PLANNED"] as const;
 
 function toPositiveInt(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
@@ -40,6 +41,16 @@ function getOptionalUserIdFromRequest(req: Request) {
   } catch {
     return undefined;
   }
+}
+
+function pickCurrentReadingCycle<
+  T extends { status: string; startDate: Date },
+>(cycles: T[]): T | null {
+  return (
+    cycles.find((cycle) => cycle.status === "ACTIVE") ??
+    cycles.find((cycle) => cycle.status === "PLANNED") ??
+    null
+  );
 }
 
 export const getClubs: RequestHandler = async (req, res) => {
@@ -341,23 +352,34 @@ export const getMyClubs: RequestHandler = async (req, res) => {
         club: {
           include: {
             _count: { select: { members: true } },
+            readingCycles: {
+              where: { status: { in: [...CURRENT_READING_CYCLE_STATUSES] } },
+              include: { book: true },
+              orderBy: { startDate: "asc" },
+            },
           },
         },
       },
       orderBy: { joinedAt: "desc" },
     });
 
-    const clubs = memberships.map((m) => ({
-      id: m.club.id,
-      name: m.club.name,
-      description: m.club.description,
-      isPublic: m.club.isPublic,
-      genre: m.club.genre,
-      coverImage: m.club.coverImage,
-      memberCount: m.club._count.members,
-      joinedAt: m.joinedAt,
-      createdAt: m.club.createdAt,
-    }));
+    const clubs = memberships.map((m) => {
+      const currentReadingCycle = pickCurrentReadingCycle(m.club.readingCycles);
+
+      return {
+        id: m.club.id,
+        name: m.club.name,
+        description: m.club.description,
+        isPublic: m.club.isPublic,
+        genre: m.club.genre,
+        coverImage: m.club.coverImage,
+        memberCount: m.club._count.members,
+        memberRole: m.role,
+        currentReadingCycle,
+        joinedAt: m.joinedAt,
+        createdAt: m.club.createdAt,
+      };
+    });
 
     return res.status(200).json({ status: "success", data: { clubs } });
   } catch (error) {
