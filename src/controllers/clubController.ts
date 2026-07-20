@@ -460,6 +460,28 @@ export const joinClub: RequestHandler = async (req, res) => {
       });
     }
 
+    const existingMembership = await prisma.clubMember.findUnique({
+      where: { userId_clubId: { userId, clubId } },
+      select: { role: true },
+    });
+
+    if (existingMembership) {
+      const memberCount = await prisma.clubMember.count({
+        where: { clubId },
+      });
+
+      return res.status(200).json({
+        status: "success",
+        data: {
+          clubId,
+          memberCount,
+          isMember: true,
+          memberRole: existingMembership.role,
+          message: "You are already a member of this club.",
+        },
+      });
+    }
+
     if (!club.isPublic) {
       // For private clubs, keep only pending requests as active state.
       // Any stale reviewed request row is deleted before creating a new one.
