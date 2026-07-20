@@ -1,6 +1,7 @@
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
 import { BookServiceError, findOrCreateGoogleBook } from "./bookService";
+import { getClubMemberUserIds, notify } from "./notificationService";
 import type { ApiErrorCode } from "../utils/apiResponse";
 import type {
   Book,
@@ -271,6 +272,32 @@ function throwOpenCycleConflict(status: "ACTIVE" | "PLANNED"): never {
   );
 }
 
+async function notifyReadingCycleMembers(
+  userId: string,
+  cycle: ReadingCycle,
+  type: "READING_CYCLE_STARTED" | "READING_CYCLE_UPDATED",
+) {
+  const recipients = await getClubMemberUserIds(cycle.clubId);
+
+  await notify({
+    recipients,
+    type,
+    actorId: userId,
+    clubId: cycle.clubId,
+    title:
+      type === "READING_CYCLE_STARTED"
+        ? "New reading cycle started"
+        : "Reading cycle updated",
+    body:
+      type === "READING_CYCLE_STARTED"
+        ? `The club has started reading ${cycle.book.title}.`
+        : `${cycle.book.title} has new reading cycle details.`,
+    actionUrl: `/clubs/${cycle.clubId}/reading`,
+    entityType: "READING_CYCLE",
+    entityId: cycle.id,
+  });
+}
+
 export async function listReadingCycles(
   userId: string,
   clubId: string,
@@ -340,7 +367,7 @@ export async function createReadingCycle(
   ensureTargetEndDateIsAfterStartDate(input.startDate, input.targetEndDate);
 
   try {
-    return await prisma.$transaction(async (transactionClient) => {
+    const createdCycle = await prisma.$transaction(async (transactionClient) => {
       await assertNoOpenCycle(clubId, input.status, transactionClient);
       const book = await resolveSelectedBook(input.bookSelection, transactionClient);
       const now = new Date();
@@ -361,6 +388,16 @@ export async function createReadingCycle(
 
       return toReadingCycle(cycle);
     });
+
+    if (createdCycle.status === "ACTIVE") {
+      await notifyReadingCycleMembers(
+        userId,
+        createdCycle,
+        "READING_CYCLE_STARTED",
+      );
+    }
+
+    return createdCycle;
   } catch (error) {
     if (error instanceof ReadingCycleServiceError) {
       throw error;
@@ -433,7 +470,14 @@ export async function updateReadingCycle(
       select: readingCycleSelect,
     });
 
-    return toReadingCycle(cycle);
+    const updatedCycle = toReadingCycle(cycle);
+    await notifyReadingCycleMembers(
+      userId,
+      updatedCycle,
+      "READING_CYCLE_UPDATED",
+    );
+
+    return updatedCycle;
   } catch {
     throw new ReadingCycleServiceError(
       "READING_CYCLE_UPDATE_FAILED",
@@ -451,7 +495,7 @@ export async function startReadingCycle(
   await assertClubOwner(userId, clubId);
 
   try {
-    return await prisma.$transaction(async (transactionClient) => {
+    const startedCycle = await prisma.$transaction(async (transactionClient) => {
       const cycle = await transactionClient.readingCycle.findFirst({
         where: { id: cycleId, clubId },
         select: readingCycleSelect,
@@ -483,6 +527,14 @@ export async function startReadingCycle(
 
       return toReadingCycle(updatedCycle);
     });
+
+    await notifyReadingCycleMembers(
+      userId,
+      startedCycle,
+      "READING_CYCLE_STARTED",
+    );
+
+    return startedCycle;
   } catch (error) {
     if (error instanceof ReadingCycleServiceError) {
       throw error;

@@ -1,5 +1,6 @@
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
+import { getClubMemberUserIds, notify } from "./notificationService";
 import type { ApiErrorCode } from "../utils/apiResponse";
 import type {
   CreateReadingTargetInput,
@@ -287,6 +288,28 @@ async function compactSequences(
   );
 }
 
+async function notifyCurrentReadingTarget(
+  userId: string,
+  clubId: string,
+  target: ReadingTarget,
+) {
+  if (target.state !== "CURRENT") return;
+
+  const recipients = await getClubMemberUserIds(clubId);
+
+  await notify({
+    recipients,
+    type: "READING_TARGET_UPCOMING",
+    actorId: userId,
+    clubId,
+    title: "This week's reading target",
+    body: `${target.rangeLabel} is now on the club reading plan.`,
+    actionUrl: `/clubs/${clubId}/reading`,
+    entityType: "READING_TARGET",
+    entityId: target.id,
+  });
+}
+
 function normalizeCreateInput(input: CreateReadingTargetInput) {
   const targetType = input.targetType;
 
@@ -365,7 +388,7 @@ export async function createReadingTarget(
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      return await prisma.$transaction(async (transactionClient) => {
+      const createdTarget = await prisma.$transaction(async (transactionClient) => {
         await ensureNoOverlap(
           cycleId,
           data.startDate,
@@ -385,6 +408,9 @@ export async function createReadingTarget(
 
         return toReadingTarget(target);
       });
+
+      await notifyCurrentReadingTarget(userId, clubId, createdTarget);
+      return createdTarget;
     } catch (error) {
       if (error instanceof ReadingTargetServiceError) {
         throw error;
@@ -445,7 +471,10 @@ export async function updateReadingTarget(
     select: targetSelect,
   });
 
-  return toReadingTarget(target);
+  const updatedTarget = toReadingTarget(target);
+  await notifyCurrentReadingTarget(userId, clubId, updatedTarget);
+
+  return updatedTarget;
 }
 
 export async function deleteReadingTarget(

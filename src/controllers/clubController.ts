@@ -2,6 +2,7 @@ import type { Request, RequestHandler } from "express";
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
 import { getFirstValidationMessage } from "../utils/validation";
+import { notify } from "../services/notificationService";
 import { CreateBookClubSchema, UpdateBookClubSchema } from "../schemas";
 import { authConfig } from "../config/authConfig";
 import { verifyAuthToken } from "../utils/authToken";
@@ -387,7 +388,7 @@ export const joinClub: RequestHandler = async (req, res) => {
 
     const club = await prisma.bookClub.findUnique({
       where: { id: clubId },
-      select: { id: true, isPublic: true },
+      select: { id: true, name: true, isPublic: true },
     });
 
     if (!club) {
@@ -454,6 +455,18 @@ export const joinClub: RequestHandler = async (req, res) => {
 
     const memberCount = await prisma.clubMember.count({
       where: { clubId },
+    });
+
+    await notify({
+      recipients: [userId],
+      type: "CLUB_JOINED",
+      actorId: userId,
+      clubId,
+      title: `Welcome to ${club.name}`,
+      body: "You are now a member of this reading circle.",
+      actionUrl: `/clubs/${clubId}`,
+      entityType: "CLUB",
+      entityId: clubId,
     });
 
     return res.status(201).json({
@@ -668,6 +681,7 @@ export const updateJoinRequest: RequestHandler = async (req, res) => {
     // Get the request
     const request = await prisma.clubJoinRequest.findUnique({
       where: { id: requestId },
+      include: { club: { select: { name: true } } },
     });
 
     if (!request || request.clubId !== clubId) {
@@ -699,6 +713,18 @@ export const updateJoinRequest: RequestHandler = async (req, res) => {
         });
       });
 
+      await notify({
+        recipients: [request.userId],
+        type: "JOIN_REQUEST_APPROVED",
+        actorId: userId,
+        clubId,
+        title: `You are in ${request.club.name}`,
+        body: "Your request to join this club was approved.",
+        actionUrl: `/clubs/${clubId}`,
+        entityType: "JOIN_REQUEST",
+        entityId: requestId,
+      });
+
       return res.status(200).json({
         status: "success",
         data: { message: "Join request approved" },
@@ -707,6 +733,18 @@ export const updateJoinRequest: RequestHandler = async (req, res) => {
       // Reject: remove request to avoid keeping review history rows.
       await prisma.clubJoinRequest.delete({
         where: { id: requestId },
+      });
+
+      await notify({
+        recipients: [request.userId],
+        type: "JOIN_REQUEST_REJECTED",
+        actorId: userId,
+        clubId,
+        title: `${request.club.name} did not approve your request`,
+        body: "Your request to join this private club was rejected.",
+        actionUrl: "/clubs",
+        entityType: "JOIN_REQUEST",
+        entityId: requestId,
       });
 
       return res.status(200).json({
@@ -841,9 +879,9 @@ export const getClubMembers: RequestHandler = async (req, res) => {
       select: { role: true },
     });
 
-    if (!authMembership || authMembership.role !== "OWNER") {
+    if (!authMembership) {
       return res.status(403).json({
-        error: { message: "Only club owners can view club members" },
+        error: { message: "Only club members can view club members" },
       });
     }
 
@@ -854,7 +892,7 @@ export const getClubMembers: RequestHandler = async (req, res) => {
           select: {
             id: true,
             username: true,
-            email: true,
+            email: authMembership.role === "OWNER",
           },
         },
       },
@@ -867,7 +905,7 @@ export const getClubMembers: RequestHandler = async (req, res) => {
         members: members.map((m) => ({
           userId: m.userId,
           username: m.user.username,
-          email: m.user.email,
+          email: authMembership.role === "OWNER" ? m.user.email : null,
           role: m.role,
           joinedAt: m.joinedAt,
         })),

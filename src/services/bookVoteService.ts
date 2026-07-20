@@ -1,6 +1,7 @@
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
 import { BookServiceError, findOrCreateGoogleBook } from "./bookService";
+import { getClubMemberUserIds, notify } from "./notificationService";
 import type {
   Book,
   BookVoteInput,
@@ -194,6 +195,29 @@ async function eligibleMemberCount(clubId: string) {
   return prisma.clubMember.count({ where: { clubId } });
 }
 
+async function notifyVoteRoundMembers(
+  userId: string,
+  round: { id: string; clubId: string; title: string },
+  type: "VOTING_OPENED" | "VOTING_CLOSED",
+) {
+  const recipients = await getClubMemberUserIds(round.clubId);
+
+  await notify({
+    recipients,
+    type,
+    actorId: userId,
+    clubId: round.clubId,
+    title: type === "VOTING_OPENED" ? "Voting is open" : "Voting has closed",
+    body:
+      type === "VOTING_OPENED"
+        ? `${round.title} is ready for your vote.`
+        : `${round.title} has closed. See the result in the club.`,
+    actionUrl: `/clubs/${round.clubId}/next-book`,
+    entityType: "BOOK_VOTE",
+    entityId: round.id,
+  });
+}
+
 function toRoundDto(
   round: RoundRecord,
   userId: string,
@@ -364,6 +388,8 @@ export async function updateBookVoteRound(
     select: roundSelect,
   });
 
+  await notifyVoteRoundMembers(userId, updated, "VOTING_OPENED");
+
   return toRoundDto(updated, userId, membership, await eligibleMemberCount(clubId));
 }
 
@@ -401,6 +427,8 @@ export async function openBookVoteRound(
     data: { status: "OPEN", opensAt: round.opensAt ?? new Date() },
     select: roundSelect,
   });
+
+  await notifyVoteRoundMembers(userId, updated, "VOTING_CLOSED");
 
   return toRoundDto(updated, userId, membership, await eligibleMemberCount(clubId));
 }

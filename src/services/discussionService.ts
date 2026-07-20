@@ -1,5 +1,6 @@
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
+import { getClubMemberUserIds, notify } from "./notificationService";
 import type {
   CreateDiscussionPostInput,
   CreateDiscussionTopicInput,
@@ -399,6 +400,18 @@ export async function createDiscussionTopic(
     select: topicSelect,
   });
 
+  await notify({
+    recipients: await getClubMemberUserIds(clubId, { excludeUserIds: [userId] }),
+    type: "DISCUSSION_TOPIC_CREATED",
+    actorId: userId,
+    clubId,
+    title: "New discussion topic",
+    body: topic.title,
+    actionUrl: `/clubs/${clubId}/discussion`,
+    entityType: "DISCUSSION_TOPIC",
+    entityId: topic.id,
+  });
+
   return toTopicDto(topic, userId, membership);
 }
 
@@ -559,10 +572,12 @@ export async function createDiscussionPost(
     );
   }
 
+  let parentAuthorId: string | null = null;
+
   if (input.parentPostId) {
     const parent = await prisma.discussionPost.findFirst({
       where: { id: input.parentPostId, topicId, deletedAt: null },
-      select: { id: true, parentPostId: true },
+      select: { id: true, parentPostId: true, userId: true },
     });
 
     if (!parent) {
@@ -580,6 +595,8 @@ export async function createDiscussionPost(
         400,
       );
     }
+
+    parentAuthorId = parent.userId;
   }
 
   const post = await prisma.discussionPost.create({
@@ -592,6 +609,20 @@ export async function createDiscussionPost(
     select: postSelect,
   });
   const rolesByUserId = await getRolesByUserId(clubId, [post.userId]);
+
+  if (parentAuthorId && parentAuthorId !== userId) {
+    await notify({
+      recipients: [parentAuthorId],
+      type: "DISCUSSION_REPLY",
+      actorId: userId,
+      clubId,
+      title: "New reply to your discussion post",
+      body: topic.title,
+      actionUrl: `/clubs/${clubId}/discussion`,
+      entityType: "DISCUSSION_POST",
+      entityId: post.id,
+    });
+  }
 
   return toPostDto(post, userId, membership, rolesByUserId);
 }

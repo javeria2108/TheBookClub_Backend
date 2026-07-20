@@ -97,7 +97,7 @@ router.get("/:id/join-requests", requireAuth, getJoinRequests);
 // Approve/reject join request (owner/moderator only)
 router.patch("/:id/join-requests/:reqId", requireAuth, updateJoinRequest);
 
-// Get club members (owner only)
+// Get club members (current members; emails only for owner)
 router.get("/:id/members", requireAuth, getClubMembers);
 
 // Update member role (owner only)

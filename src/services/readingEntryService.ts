@@ -1,5 +1,6 @@
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "../lib/prisma";
+import { getClubMemberUserIds, notify } from "./notificationService";
 import type {
   CreateReadingEntryInput,
   ListReadingEntriesInput,
@@ -145,6 +146,11 @@ function ensureCycleAcceptsEntries(status: string) {
   }
 }
 
+function isCurrentTargetDateRange(target: { startDate: Date; endDate: Date }) {
+  const now = new Date();
+  return now >= target.startDate && now <= target.endDate;
+}
+
 async function ensureTarget(
   cycleId: string,
   readingTargetId: string | null | undefined,
@@ -153,7 +159,7 @@ async function ensureTarget(
 
   const target = await prisma.readingTarget.findFirst({
     where: { id: readingTargetId, readingCycleId: cycleId },
-    select: { id: true },
+    select: { id: true, title: true, startDate: true, endDate: true },
   });
 
   if (!target) {
@@ -164,7 +170,7 @@ async function ensureTarget(
     );
   }
 
-  return target.id;
+  return target;
 }
 
 function validateEntryContent(input: {
@@ -267,7 +273,7 @@ export async function createReadingEntry(
   const cycle = await getCycle(clubId, cycleId);
   ensureCycleAcceptsEntries(cycle.status);
   validateEntryContent(input);
-  const readingTargetId = await ensureTarget(cycleId, input.readingTargetId);
+  const readingTarget = await ensureTarget(cycleId, input.readingTargetId);
 
   const entry = await prisma.readingEntry.create({
     data: {
@@ -278,12 +284,31 @@ export async function createReadingEntry(
       body: input.body.trim(),
       commentary:
         input.entryType === "QUOTE" ? input.commentary?.trim() || null : null,
-      readingTargetId,
+      readingTargetId: readingTarget?.id ?? null,
       pageNumber: input.pageNumber ?? null,
       chapterReference: input.chapterReference?.trim() || null,
     },
     select: entrySelect,
   });
+
+  if (readingTarget && isCurrentTargetDateRange(readingTarget)) {
+    await notify({
+      recipients: await getClubMemberUserIds(clubId, {
+        excludeUserIds: [userId],
+      }),
+      type: "READING_ENTRY_CREATED",
+      actorId: userId,
+      clubId,
+      title:
+        input.entryType === "QUOTE"
+          ? "New favourite quote"
+          : "New reading reflection",
+      body: `${entry.user.username} shared something for ${readingTarget.title}.`,
+      actionUrl: `/clubs/${clubId}/reading`,
+      entityType: "READING_ENTRY",
+      entityId: entry.id,
+    });
+  }
 
   return toEntryDto(entry, userId, membership);
 }
@@ -316,7 +341,8 @@ export async function updateReadingEntry(
   const readingTargetId =
     input.readingTargetId === undefined
       ? existing.readingTargetId
-      : await ensureTarget(existing.readingCycleId, input.readingTargetId);
+      : ((await ensureTarget(existing.readingCycleId, input.readingTargetId))?.id ??
+        null);
 
   const updated = await prisma.readingEntry.update({
     where: { id: entryId },

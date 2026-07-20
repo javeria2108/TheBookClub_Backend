@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import booksRouter from "./routes/books";
 import clubsRouter from "./routes/clubs";
+import notificationsRouter from "./routes/notifications";
 import usersRouter from "./routes/users";
 import uploadsRouter from "./routes/uploads";
 import { config } from "dotenv";
@@ -40,6 +41,7 @@ app.use(
 );
 app.use("/api/clubs", clubsRouter);
 app.use("/api/books", booksRouter);
+app.use("/api/notifications", notificationsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/uploads", uploadsRouter);

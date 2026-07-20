@@ -24,6 +24,7 @@ model BookClub {
   discussionTopics DiscussionTopic[]
   bookVoteRounds BookVoteRound[]
   readingEntries ReadingEntry[]
+  notifications Notification[]
 }
 
 model Book {
@@ -80,6 +81,8 @@ model User {
   bookNominations BookNomination[]
   bookVotes       BookVote[]
   readingEntries  ReadingEntry[]
+  notifications   Notification[] @relation("NotificationRecipient")
+  actedNotifications Notification[] @relation("NotificationActor")
 }
 
 model ReadingCycle {
@@ -364,6 +367,33 @@ model ReadingEntry {
   @@index([deletedAt])
 }
 
+model Notification {
+  id               String                  @id @default(uuid())
+  recipientUserId  String
+  actorUserId      String?
+  clubId           String?
+  notificationType NotificationType
+  title            String
+  body             String
+  actionUrl        String
+  entityId         String?
+  entityType       NotificationEntityType?
+  isRead           Boolean                 @default(false)
+  createdAt        DateTime                @default(now())
+  readAt           DateTime?
+
+  recipient User      @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  actor     User?     @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  club      BookClub? @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([recipientUserId, notificationType, entityType, entityId])
+  @@index([recipientUserId, isRead, createdAt])
+  @@index([recipientUserId, createdAt])
+  @@index([clubId])
+  @@index([notificationType])
+  @@index([entityType, entityId])
+}
+
 enum Role {
   USER
   ADMIN
@@ -423,4 +453,29 @@ enum BookVoteRoundStatus {
 enum ReadingEntryType {
   REFLECTION
   QUOTE
+}
+
+enum NotificationType {
+  JOIN_REQUEST_APPROVED
+  JOIN_REQUEST_REJECTED
+  CLUB_JOINED
+  READING_CYCLE_STARTED
+  READING_CYCLE_UPDATED
+  READING_TARGET_UPCOMING
+  VOTING_OPENED
+  VOTING_CLOSED
+  DISCUSSION_TOPIC_CREATED
+  DISCUSSION_REPLY
+  READING_ENTRY_CREATED
+}
+
+enum NotificationEntityType {
+  CLUB
+  JOIN_REQUEST
+  READING_CYCLE
+  READING_TARGET
+  DISCUSSION_TOPIC
+  DISCUSSION_POST
+  BOOK_VOTE
+  READING_ENTRY
 }
