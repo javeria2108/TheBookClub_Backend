@@ -1,7 +1,7 @@
 import path from "path";
 import { promises as fs } from "fs";
 
-import { Prisma } from "../generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import {
   getPublicBaseUrl,

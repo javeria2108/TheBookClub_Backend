@@ -1,7 +1,7 @@
 import type {
   NotificationEntityType,
   NotificationType,
-} from "../generated/prisma/client";
+} from "@prisma/client";
 
 export type NotificationActorDto = {
   id: string;

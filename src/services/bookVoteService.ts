@@ -1,4 +1,4 @@
-import { Prisma } from "../generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { BookServiceError, findOrCreateGoogleBook } from "./bookService";
 import { getClubMemberUserIds, notify } from "./notificationService";

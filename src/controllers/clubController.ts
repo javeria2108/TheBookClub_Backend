@@ -1,5 +1,5 @@
 import type { Request, RequestHandler } from "express";
-import { Prisma } from "../generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { getFirstValidationMessage } from "../utils/validation";
 import { notify } from "../services/notificationService";

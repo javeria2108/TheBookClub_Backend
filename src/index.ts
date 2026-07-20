@@ -10,7 +10,7 @@ import authRouter from "./routes/authRoutes";
 import cors from "cors";
 import http from "http";
 import { Server as IOServer } from "socket.io";
-import { authConfig, getJwtSecret } from "./config/authConfig";
+import { authConfig, corsOptions, getJwtSecret } from "./config/authConfig";
 import { verifyAuthToken } from "./utils/authToken";
 import { setSecurityHeaders } from "./middleware/securityHeaders";
 import { registerChatSocketHandlers } from "./sockets/chatSocket";
@@ -24,12 +24,7 @@ const app = express();
 app.use(setSecurityHeaders);
 app.use(express.json({ limit: authConfig.jsonBodyLimit }));
 app.use(express.urlencoded({ extended: true }));
-app.use(
-  cors({
-    origin: authConfig.allowedFrontendOrigin,
-    credentials: true,
-  }),
-);
+app.use(cors(corsOptions));
 
 app.use(
   "/uploads/clubs",
@@ -53,7 +48,10 @@ type SocketData = {
 };
 
 const io = new IOServer(httpServer, {
-  cors: { origin: authConfig.allowedFrontendOrigin, credentials: true },
+  cors: {
+    origin: authConfig.allowedFrontendOrigins,
+    credentials: true,
+  },
 });
 
 io.use((socket, next) => {
@@ -87,7 +85,7 @@ io.on("connection", (socket) => {
   registerChatSocketHandlers(io, socket, userId);
 });
 
-const PORT = 5001;
+const PORT = Number(process.env.PORT ?? 5001);
 httpServer.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
