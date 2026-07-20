@@ -323,18 +323,22 @@ export async function getCurrentReadingCycle(
     return null;
   }
 
-  const cycle = await prisma.readingCycle.findFirst({
+  const cycles = await prisma.readingCycle.findMany({
     where: {
       clubId,
       status: { in: [...ACTIVE_OR_PLANNED_STATUSES] },
     },
     orderBy: [
-      { status: "asc" },
       { startDate: "asc" },
       { createdAt: "asc" },
     ],
     select: readingCycleSelect,
   });
+
+  const cycle =
+    cycles.find((readingCycle) => readingCycle.status === "ACTIVE") ??
+    cycles.find((readingCycle) => readingCycle.status === "PLANNED") ??
+    null;
 
   return cycle ? toReadingCycle(cycle) : null;
 }

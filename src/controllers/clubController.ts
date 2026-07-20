@@ -67,6 +67,7 @@ export const getClubs: RequestHandler = async (req, res) => {
 
     const search = (req.query.search as string | undefined)?.trim();
     const isPublicQuery = req.query.isPublic as string | undefined;
+    const userId = getOptionalUserIdFromRequest(req);
 
     const where: Prisma.BookClubWhereInput = {};
 
@@ -93,6 +94,31 @@ export const getClubs: RequestHandler = async (req, res) => {
       prisma.bookClub.count({ where }),
     ]);
 
+    const clubIds = dbClubs.map((club) => club.id);
+    const [memberships, pendingRequests] = userId
+      ? await Promise.all([
+          prisma.clubMember.findMany({
+            where: { userId, clubId: { in: clubIds } },
+            select: { clubId: true, role: true },
+          }),
+          prisma.clubJoinRequest.findMany({
+            where: {
+              userId,
+              clubId: { in: clubIds },
+              status: "PENDING",
+            },
+            select: { id: true, clubId: true },
+          }),
+        ])
+      : [[], []];
+
+    const membershipByClubId = new Map(
+      memberships.map((membership) => [membership.clubId, membership.role]),
+    );
+    const pendingRequestByClubId = new Map(
+      pendingRequests.map((request) => [request.clubId, request.id]),
+    );
+
     const clubs = dbClubs.map((club) => ({
       id: club.id,
       name: club.name,
@@ -101,6 +127,10 @@ export const getClubs: RequestHandler = async (req, res) => {
       genre: club.genre,
       coverImage: club.coverImage,
       memberCount: club._count.members,
+      isMember: membershipByClubId.has(club.id),
+      memberRole: membershipByClubId.get(club.id) ?? null,
+      hasPendingJoinRequest: pendingRequestByClubId.has(club.id),
+      pendingJoinRequestId: pendingRequestByClubId.get(club.id) ?? null,
       createdAt: club.createdAt,
     }));
 
@@ -219,6 +249,11 @@ export const getClubById: RequestHandler = async (req, res) => {
         _count: {
           select: { members: true },
         },
+        readingCycles: {
+          where: { status: { in: [...CURRENT_READING_CYCLE_STATUSES] } },
+          include: { book: true },
+          orderBy: { startDate: "asc" },
+        },
       },
     });
 
@@ -256,6 +291,11 @@ export const getClubById: RequestHandler = async (req, res) => {
       });
     }
 
+    const currentReadingCycle =
+      club.isPublic || isMember
+        ? pickCurrentReadingCycle(club.readingCycles)
+        : null;
+
     const data: GetClubByIdSuccessData = {
       club: {
         id: club.id,
@@ -267,6 +307,7 @@ export const getClubById: RequestHandler = async (req, res) => {
         memberCount: club._count.members,
         isMember,
         memberRole: userRole,
+        currentReadingCycle,
         hasPendingJoinRequest,
         pendingJoinRequestId,
         createdAt: club.createdAt,

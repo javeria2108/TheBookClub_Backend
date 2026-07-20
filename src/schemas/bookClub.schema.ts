@@ -75,6 +75,7 @@ export const BookClubResponseSchema = z.object({
   memberCount: z.number().int().nonnegative(),
   isMember: z.boolean().optional(),
   memberRole: z.enum(["MEMBER", "MODERATOR", "OWNER"]).optional().nullable(),
+  currentReadingCycle: z.any().nullable().optional(),
   hasPendingJoinRequest: z.boolean().optional(),
   pendingJoinRequestId: z.string().uuid().optional().nullable(),
   createdAt: z.date(),
