@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getMe,
+  getSocketToken,
   loginUser,
   logout,
   registerUser,
@@ -19,6 +20,7 @@ const authRateLimit = createRateLimit({
 router.post("/register", authRateLimit, registerUser);
 router.post("/login", authRateLimit, loginUser);
 router.get("/me", requireAuth, getMe);
+router.get("/socket-token", requireAuth, getSocketToken);
 router.post("/logout", logout);
 
 export default router;

@@ -3,10 +3,15 @@ import { prisma } from "../lib/prisma";
 import bcrypt from "bcryptjs";
 import { authConfig, getAuthCookieOptions } from "../config/authConfig";
 import generateToken from "../utils/generateToken";
+import { signAuthToken } from "../utils/authToken";
 import { sendError } from "../utils/apiResponse";
 import { getFirstValidationMessage } from "../utils/validation";
 import { UserLoginSchema, UserRegisterSchema } from "../schemas";
-import type { AuthSuccessData, AuthUserResponse } from "../types/auth.types";
+import type {
+  AuthSuccessData,
+  AuthUserResponse,
+  SocketTokenSuccessData,
+} from "../types/auth.types";
 
 function toAuthUser(user: {
   id: string;
@@ -135,6 +140,21 @@ const getMe: RequestHandler = async (_req, res) => {
   });
 };
 
+const getSocketToken: RequestHandler = async (_req, res) => {
+  const userId = res.locals.userId as string | undefined;
+
+  if (!userId) {
+    return sendError(res, 401, "AUTH_REQUIRED", "You must be signed in to continue.");
+  }
+
+  return res.status(200).json({
+    status: "success",
+    data: {
+      token: signAuthToken(userId, "5m"),
+    } satisfies SocketTokenSuccessData,
+  });
+};
+
 const logout: RequestHandler = async (_req, res) => {
   res.clearCookie(authConfig.cookieName, {
     ...getAuthCookieOptions(),
@@ -149,4 +169,4 @@ const logout: RequestHandler = async (_req, res) => {
   });
 };
 
-export { registerUser, loginUser, getMe, logout };
+export { registerUser, loginUser, getMe, getSocketToken, logout };

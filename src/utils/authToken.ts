@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import jwt, { type SignOptions } from "jsonwebtoken";
 
 import { authConfig, getJwtSecret } from "../config/authConfig";
 
@@ -10,9 +10,12 @@ export type AuthTokenPayload = {
   userId: string;
 };
 
-export function signAuthToken(userId: string): string {
+export function signAuthToken(
+  userId: string,
+  expiresIn: SignOptions["expiresIn"] = authConfig.jwtExpiresIn,
+): string {
   return jwt.sign({ id: userId }, getJwtSecret(), {
-    expiresIn: authConfig.jwtExpiresIn,
+    expiresIn,
   });
 }
 

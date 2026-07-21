@@ -15,3 +15,7 @@ export type AuthUserResponse = Pick<
 export interface AuthSuccessData {
   user: AuthUserResponse;
 }
+
+export interface SocketTokenSuccessData {
+  token: string;
+}

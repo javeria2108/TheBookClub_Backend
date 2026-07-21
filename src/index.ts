@@ -58,10 +58,14 @@ const io = new IOServer(httpServer, {
 
 io.use((socket, next) => {
   try {
-    const token = getCookieValue(
-      socket.handshake.headers.cookie,
-      authConfig.cookieName,
-    );
+    const authToken = socket.handshake.auth?.token;
+    const token =
+      typeof authToken === "string" && authToken.trim()
+        ? authToken
+        : getCookieValue(
+            socket.handshake.headers.cookie,
+            authConfig.cookieName,
+          );
 
     if (!token) {
       return next(new Error("Not authenticated"));
