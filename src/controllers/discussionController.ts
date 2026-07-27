@@ -24,6 +24,7 @@ import {
 } from "../services/discussionService";
 import { sendError } from "../utils/apiResponse";
 import { getFirstValidationMessage } from "../utils/validation";
+import { trackEvent } from "../services/analyticsService";
 
 function getAuthenticatedUserId(res: Response): string | null {
   return (res.locals.userId as string | undefined) ?? null;
@@ -102,6 +103,12 @@ export const createClubDiscussionTopic: RequestHandler = async (req, res) => {
       paramsValidation.data.clubId,
       bodyValidation.data,
     );
+    trackEvent("discussion_created", {
+      userId,
+      clubId: paramsValidation.data.clubId,
+      topicId: topic.id,
+      topicType: topic.topicType,
+    });
     return res.status(201).json({ status: "success", data: { topic } });
   } catch (error) {
     return handleDiscussionError(res, error);

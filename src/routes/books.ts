@@ -10,15 +10,16 @@ import {
   updateBookController,
 } from "../controllers/bookController";
 import { requireAuth } from "../middleware/requireAuth";
+import { mutationRateLimit, searchRateLimit } from "../middleware/rateLimit";
 
 const router = express.Router();
 
-router.get("/", listBooks);
-router.get("/search", searchBooks);
-router.post("/import", requireAuth, importBookController);
+router.get("/", searchRateLimit, listBooks);
+router.get("/search", searchRateLimit, searchBooks);
+router.post("/import", requireAuth, searchRateLimit, importBookController);
 router.get("/:id", getBook);
-router.post("/", requireAuth, createBookController);
-router.patch("/:id", requireAuth, updateBookController);
-router.delete("/:id", requireAuth, deleteBookController);
+router.post("/", requireAuth, mutationRateLimit, createBookController);
+router.patch("/:id", requireAuth, mutationRateLimit, updateBookController);
+router.delete("/:id", requireAuth, mutationRateLimit, deleteBookController);
 
 export default router;

@@ -25,6 +25,7 @@ import {
 } from "../services/bookVoteService";
 import { sendError } from "../utils/apiResponse";
 import { getFirstValidationMessage } from "../utils/validation";
+import { trackEvent } from "../services/analyticsService";
 
 function getAuthenticatedUserId(res: Response): string | null {
   return (res.locals.userId as string | undefined) ?? null;
@@ -218,6 +219,11 @@ export const voteInClubBookRound: RequestHandler = async (req, res) => {
       paramsValidation.data.roundId,
       bodyValidation.data,
     );
+    trackEvent("vote_submitted", {
+      userId,
+      clubId: paramsValidation.data.clubId,
+      voteRoundId: paramsValidation.data.roundId,
+    });
     return res.status(200).json({ status: "success", data: { voteRound } });
   } catch (error) {
     return handleBookVoteError(res, error);

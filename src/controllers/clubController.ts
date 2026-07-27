@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { getFirstValidationMessage } from "../utils/validation";
 import { notify } from "../services/notificationService";
+import { trackEvent } from "../services/analyticsService";
 import { CreateBookClubSchema, UpdateBookClubSchema } from "../schemas";
 import { authConfig } from "../config/authConfig";
 import { verifyAuthToken } from "../utils/authToken";
@@ -211,6 +212,12 @@ export const createClub: RequestHandler = async (req, res) => {
         createdAt: createdClub.createdAt,
       },
     };
+
+    trackEvent("club_created", {
+      userId,
+      clubId: createdClub.id,
+      isPublic: createdClub.isPublic,
+    });
 
     return res.status(201).json({ status: "success", data });
   } catch (error) {
@@ -505,6 +512,8 @@ export const joinClub: RequestHandler = async (req, res) => {
           },
         });
 
+        trackEvent("join_request_created", { userId, clubId });
+
         return res.status(201).json({
           status: "success",
           data: { message: "Join request created. Waiting for approval." },
@@ -513,6 +522,7 @@ export const joinClub: RequestHandler = async (req, res) => {
 
       try {
         await prisma.clubJoinRequest.create({ data: { clubId, userId } });
+        trackEvent("join_request_created", { userId, clubId });
         return res.status(201).json({
           status: "success",
           data: { message: "Join request created. Waiting for approval." },
@@ -553,6 +563,8 @@ export const joinClub: RequestHandler = async (req, res) => {
       entityType: "CLUB",
       entityId: clubId,
     });
+
+    trackEvent("club_joined", { userId, clubId });
 
     return res.status(201).json({
       status: "success",

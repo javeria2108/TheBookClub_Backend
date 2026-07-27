@@ -20,6 +20,7 @@ import {
 } from "../services/readingCycleService";
 import { sendError } from "../utils/apiResponse";
 import { getFirstValidationMessage } from "../utils/validation";
+import { trackEvent } from "../services/analyticsService";
 
 function getAuthenticatedUserId(res: Response): string | null {
   return (res.locals.userId as string | undefined) ?? null;
@@ -263,6 +264,12 @@ export const startClubReadingCycle: RequestHandler = async (req, res) => {
       validation.data.clubId,
       validation.data.cycleId,
     );
+
+    trackEvent("reading_cycle_started", {
+      userId,
+      clubId: validation.data.clubId,
+      readingCycleId: readingCycle.id,
+    });
 
     return res.status(200).json({
       status: "success",

@@ -6,6 +6,7 @@ import generateToken from "../utils/generateToken";
 import { signAuthToken } from "../utils/authToken";
 import { sendError } from "../utils/apiResponse";
 import { getFirstValidationMessage } from "../utils/validation";
+import { trackEvent } from "../services/analyticsService";
 import { UserLoginSchema, UserRegisterSchema } from "../schemas";
 import type {
   AuthSuccessData,
@@ -62,6 +63,7 @@ const registerUser: RequestHandler = async (req, res) => {
   });
 
   generateToken(user.id, res);
+  trackEvent("account_created", { userId: user.id });
 
   return res.status(201).json({
     status: "success",

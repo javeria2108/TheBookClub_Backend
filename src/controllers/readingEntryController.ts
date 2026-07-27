@@ -16,6 +16,7 @@ import {
 } from "../services/readingEntryService";
 import { sendError } from "../utils/apiResponse";
 import { getFirstValidationMessage } from "../utils/validation";
+import { trackEvent } from "../services/analyticsService";
 
 function getAuthenticatedUserId(res: Response): string | null {
   return (res.locals.userId as string | undefined) ?? null;
@@ -92,6 +93,12 @@ export const createClubReadingEntry: RequestHandler = async (req, res) => {
       paramsValidation.data.cycleId,
       bodyValidation.data,
     );
+    trackEvent("reflection_shared", {
+      userId,
+      clubId: paramsValidation.data.clubId,
+      readingCycleId: paramsValidation.data.cycleId,
+      entryType: entry.entryType,
+    });
     return res.status(201).json({ status: "success", data: { entry } });
   } catch (error) {
     return handleReadingEntryError(res, error);
