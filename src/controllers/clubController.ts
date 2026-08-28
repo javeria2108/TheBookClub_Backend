@@ -185,7 +185,7 @@ export const createClub: RequestHandler = async (req, res) => {
           description: payload.description ?? null,
           isPublic: payload.isPublic,
           genre: payload.genre ?? null,
-          coverImage: payload.coverImage,
+          coverImage: payload.coverImage ?? null,
         },
       });
 

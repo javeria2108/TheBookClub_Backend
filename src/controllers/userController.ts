@@ -1,10 +1,9 @@
 import type { RequestHandler, Response } from "express";
-import { promises as fs } from "fs";
 import multer from "multer";
 
-import { buildUserAvatarPublicUrl } from "../config/upload";
 import { uploadUserAvatar } from "../middleware/uploadUserAvatar";
 import { UpdateUserProfileSchema } from "../schemas";
+import { uploadImageToCloudinary } from "../services/cloudinaryUploadService";
 import {
   getUserProfile,
   updateUserAvatar,
@@ -16,14 +15,6 @@ import { getFirstValidationMessage } from "../utils/validation";
 
 function getAuthenticatedUserId(res: Response): string | null {
   return (res.locals.userId as string | undefined) ?? null;
-}
-
-async function removeUploadedFile(filePath: string) {
-  try {
-    await fs.unlink(filePath);
-  } catch {
-    // Best-effort cleanup. Preserve the original upload/update error.
-  }
 }
 
 export const getMyProfile: RequestHandler = async (_req, res) => {
@@ -102,25 +93,25 @@ export const uploadMyAvatar: RequestHandler = async (req, res) => {
     return sendError(res, 401, "AUTH_REQUIRED", "You must be signed in to continue.");
   }
 
-  if (!req.file) {
+  if (!req.file?.buffer) {
     return sendError(res, 400, "VALIDATION_ERROR", "Avatar image file is required.");
   }
 
   const uploadedFile = req.file;
 
   try {
-    const profile = await updateUserAvatar(
-      userId,
-      buildUserAvatarPublicUrl(uploadedFile.filename),
-    );
+    const result = await uploadImageToCloudinary({
+      buffer: uploadedFile.buffer,
+      folder: "bookcircle/avatars",
+      publicIdPrefix: `avatar-${userId}`,
+    });
+    const profile = await updateUserAvatar(userId, result.secure_url);
 
     return res.status(200).json({
       status: "success",
       data: { profile },
     });
   } catch (error) {
-    await removeUploadedFile(uploadedFile.path);
-
     if (error instanceof UserServiceError) {
       return sendError(res, error.statusCode, error.code, error.message);
     }
