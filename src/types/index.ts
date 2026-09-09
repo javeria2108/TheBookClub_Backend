@@ -14,3 +14,5 @@ export * from './readingEntry.types';
 export * from './notification.types';
 export * from './auth.types';
 export * from './clubResponse.types';
+export * from './rating.types';
+export * from './clubOverview.types';

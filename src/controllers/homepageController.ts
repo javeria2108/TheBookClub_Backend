@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express";
 import { prisma } from "../lib/prisma";
+import { getHomepageHighlights } from "../services/clubOverviewService";
 import { sendError } from "../utils/apiResponse";
 
 export const getHomepageStats: RequestHandler = async (_req, res) => {
@@ -38,6 +39,25 @@ export const getHomepageStats: RequestHandler = async (_req, res) => {
       500,
       "HOME_STATS_LOAD_FAILED",
       "Unable to load homepage statistics.",
+    );
+  }
+};
+
+export const getHomepageHighlightCards: RequestHandler = async (_req, res) => {
+  try {
+    const highlights = await getHomepageHighlights();
+
+    return res.status(200).json({
+      status: "success",
+      data: { highlights },
+    });
+  } catch (error) {
+    console.error("GET /api/homepage/highlights failed:", error);
+    return sendError(
+      res,
+      500,
+      "HOME_STATS_LOAD_FAILED",
+      "Unable to load homepage highlights.",
     );
   }
 };

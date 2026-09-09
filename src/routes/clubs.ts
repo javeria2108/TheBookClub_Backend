@@ -14,6 +14,11 @@ import {
   updateJoinRequest,
   updateMemberRole,
 } from "../controllers/clubController";
+import { getClubOverviewById } from "../controllers/clubOverviewController";
+import {
+  updateMyBookRating,
+  updateMyClubRating,
+} from "../controllers/ratingController";
 import { getMessages } from "../controllers/chatControllers";
 import {
   cancelClubBookVoteRound,
@@ -111,6 +116,15 @@ router.patch("/:id/members/:userId/role", requireAuth, mutationRateLimit, update
 
 // Transfer ownership (owner only)
 router.patch("/:id/ownership", requireAuth, mutationRateLimit, transferClubOwnership);
+
+router.get("/:id/overview", getClubOverviewById);
+router.put("/:id/rating/me", requireAuth, mutationRateLimit, updateMyClubRating);
+router.put(
+  "/:clubId/books/:bookId/rating/me",
+  requireAuth,
+  mutationRateLimit,
+  updateMyBookRating,
+);
 
 router.get("/:clubId/reading-cycles", requireAuth, listClubReadingCycles);
 router.get("/:clubId/reading-cycles/current", getCurrentClubReadingCycle);

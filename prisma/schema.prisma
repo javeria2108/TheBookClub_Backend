@@ -24,6 +24,7 @@ model BookClub {
   bookVoteRounds BookVoteRound[]
   readingEntries ReadingEntry[]
   notifications Notification[]
+  ratings ClubRating[]
 }
 
 model Book {
@@ -47,6 +48,7 @@ model Book {
   updatedAt      DateTime @updatedAt
   readingCycles  ReadingCycle[]
   nominations    BookNomination[]
+  ratings        BookRating[]
 
   @@unique([externalSource, externalId])
   @@index([title])
@@ -82,6 +84,44 @@ model User {
   readingEntries  ReadingEntry[]
   notifications   Notification[] @relation("NotificationRecipient")
   actedNotifications Notification[] @relation("NotificationActor")
+  clubRatings    ClubRating[]
+  bookRatings    BookRating[]
+}
+
+model ClubRating {
+  id        String   @id @default(uuid())
+  clubId    String
+  userId    String
+  rating    Int
+  review    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  club BookClub @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, userId])
+  @@index([clubId])
+  @@index([userId])
+  @@index([rating])
+}
+
+model BookRating {
+  id        String   @id @default(uuid())
+  bookId    String
+  userId    String
+  rating    Int
+  review    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, userId])
+  @@index([bookId])
+  @@index([userId])
+  @@index([rating])
 }
 
 model ReadingCycle {
